@@ -1,0 +1,7 @@
+{
+  "what": "A four-section performance synth after the ARP Quadra: bass, string ensemble, poly and a two-voice lead at once across a split keyboard, with a 14-stage phaser, reverb, delay, one-finger chords, a clock-synced sequencer, pressure on the lead and 68 programs.",
+  "kinds": ["synth"],
+  "play": "https://matttallison.github.io/quadro-fm1/emu/",
+  "cheat": "https://matttallison.github.io/quadro-fm1/manual/",
+  "image": "app/docs/img/home.png"
+}

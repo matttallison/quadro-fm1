@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- A package identity of QUADRO's own, FM-1_52 (1.0's FM-1_96 is the start of other firmwares'). Nothing else changed.
+
 ## 1.0
 
 The first release.

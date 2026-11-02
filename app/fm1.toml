@@ -1,6 +1,6 @@
 # QUADRO's build settings (fm1-base tools/build.py)
 name = "QUADRO"
-id_prefix = "FM-1_96"          # package identity: dev FM-1_9600, releases FM-1_96XXYYZZ
+id_prefix = "FM-1_52"          # package identity: dev FM-1_5200, releases FM-1_52XXYYZZ (FM-1_96x: SID-1 and others)
 usb_manufacturer = "QUADRO"
 usb_product = "QUADRO FM-1"
 o2 = []

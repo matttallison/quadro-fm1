@@ -1,0 +1,16 @@
+# QUADRO's build settings (fm1-base tools/build.py)
+name = "QUADRO"
+id_prefix = "FM-1_96"          # package identity: dev FM-1_9600, releases FM-1_96XXYYZZ
+usb_manufacturer = "QUADRO"
+usb_product = "QUADRO FM-1"
+o2 = []
+ble = true                     # Bluetooth MIDI (--no-ble builds without it)
+ble_stack = "own"              # fm1-base's own stack (bt/): nothing of JieLi's linked
+ble_central = false
+cpu2 = true                    # the second core: the strings and poly voices
+cpu2_fallback = true           # one core if this unit misreads or faults (some do)
+tagline = "bass strings poly lead"
+repo = "https://github.com/matttallison/matttallison-quadro-fm1"
+licence = "GPL-3.0"
+credits = "QUADRO synth, panel, reverb and delay; on fm1-base (MPL-2.0) and felucca-bsp"
+words = "words.tsv"

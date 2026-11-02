@@ -1,0 +1,97 @@
+# QUADRO in the host simulator: ./build.sh --host, then
+#   app/build/host/quadro_host app/tests/basic.txt app/build/host
+# (tests/run_tests.sh runs it, with the audio test)
+wait 1500
+master 4096
+peakreset
+# the keys sound, and go out as MIDI (F3 at velocity 90)
+key 0 down 90
+key 7 down 90
+key 11 down 90
+key 14 down 90
+key 19 down 100 60
+wait 600
+expect_out USB 90 35 5A
+expect peak_db_min -30
+expect peak_db_max -0.1
+key 19 up
+key 14 up
+key 11 up
+key 7 up
+key 0 up
+wait 1500
+# every section's page opens
+turn ALGO -6
+tap EDIT
+tap EDIT
+tap ENV
+tap LFO
+tap SEL
+turn ALGO 1
+tap EDIT
+turn ALGO 1
+tap EDIT
+turn ALGO 1
+tap EDIT
+tap FX
+tap GLO
+tap HOME
+wait 200
+# MIDI in: program change (CHORD+BASS), a note, the bend, the mod wheel
+midi C0 38 00
+wait 200
+peakreset
+midi 90 3C 64
+midi E0 00 60
+midi B0 01 7F
+wait 600
+expect peak_db_min -30
+midi 80 3C 00
+wait 600
+# the sequencer on an external clock (BERLIN SEQ, HOLD)
+midi C0 2D 00
+wait 200
+tap PLAY
+tap ARP
+key 7 down
+key 11 down
+key 14 down
+wait 100
+key 7 up
+key 11 up
+key 14 up
+peakreset
+midi FA 00 00
+clock 192
+expect peak_db_min -40
+midi FC 00 00
+tap PLAY
+wait 1500
+# clock out: SETUP (HOME held), CLOCK OUT, page 2, RUN
+tap HOME
+press HOME
+wait 900
+release HOME
+wait 100
+turn K4 1
+wait 50
+tap EDIT
+turn K2 1
+wait 2000
+expect clocks_out >80
+tap HOME
+wait 200
+# a program saved survives a reboot
+tap SAVE
+turn PRESET 1
+tap SAVE
+wait 600
+expect store_writes >0
+reboot
+wait 1500
+peakreset
+key 7 down 90
+wait 400
+expect peak_db_min -40
+key 7 up
+wait 500

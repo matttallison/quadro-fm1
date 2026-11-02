@@ -1,0 +1,75 @@
+# QUADRO's screenshots for the README and the manual (app/docs/img): ./build.sh --host, then
+#   app/build/host/quadro_host app/tests/screens.txt app/docs/img
+wait 1500
+master 4096
+shot boot.png
+# QUADRO (program 1): bass on F3, a C chord on the strings and poly, the lead on top
+key 0 down 90
+key 7 down 90
+key 11 down 90
+key 14 down 90
+key 19 down 100 60
+wait 700
+shot home.png
+# the bass's VOICES page, then its VCF
+turn ALGO -6
+wait 200
+tap EDIT
+wait 300
+shot edit-bass.png
+turn ALGO 3
+wait 200
+tap EDIT
+wait 300
+shot edit-lead.png
+tap ENV
+wait 300
+shot envelope.png
+tap FX
+wait 400
+shot phaser.png
+tap GLO
+wait 300
+shot mixer.png
+key 19 up
+key 14 up
+key 11 up
+key 7 up
+key 0 up
+wait 800
+# CHORD+BASS (57): one key, a chord and its bass
+midi C0 38 00
+wait 300
+tap HOME
+wait 200
+key 7 down 100
+wait 600
+shot chord.png
+key 7 up
+wait 600
+# BERLIN SEQ (46): the sequencer on a held chord, HOLD on
+midi C0 2D 00
+wait 300
+tap PLAY
+tap ARP
+key 7 down
+key 11 down
+key 14 down
+wait 100
+key 7 up
+key 11 up
+key 14 up
+wait 2500
+shot sequencer.png
+tap PLAY
+wait 600
+# SETUP: HOME held
+tap HOME
+press HOME
+wait 900
+release HOME
+wait 300
+shot setup.png
+tap EDIT
+wait 300
+shot setup-2.png

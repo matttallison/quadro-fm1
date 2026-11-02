@@ -828,6 +828,8 @@ static __attribute__((noinline)) void q_lead(void)
     }
     {
         int32_t g1 = qm15(qm15(e1 >> 9, 22000), P(QP_L_TOUCH) == 2 ? 26000 + (q.touch >> 8) * 53 : 32767), g0 = q.l.g, dg;   /* ... and louder */
+        if (P(QP_ARP))                          /* the sequencer's short steps: as loud as a held lead */
+            g1 = g1 * 2;
         if (!g1 && !g0)
             return;
         dg = (g1 - g0) / Q_BLK;

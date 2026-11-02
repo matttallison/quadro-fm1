@@ -2,7 +2,9 @@
 
 ## 1.0.1
 
-- A package identity of QUADRO's own, FM-1_52 (1.0's FM-1_96 is the start of other firmwares'). Nothing else changed.
+- A package identity of QUADRO's own, FM-1_52 (1.0's FM-1_96 is the start of other firmwares').
+- The sequencer louder: the lead's steps as loud as a held lead; BERLIN SEQ and SEQUENCE fuller, the sequence programs' steps longer.
+- A demo song: [app/docs/quadro-demo.mid](app/docs/quadro-demo.mid) to play into QUADRO, and how it sounds ([quadro-demo.mp3](app/docs/quadro-demo.mp3)).
 
 ## 1.0
 

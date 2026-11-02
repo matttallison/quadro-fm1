@@ -21,6 +21,9 @@ each knob does as you turn it.
 - **MIDI** in and out over USB, Bluetooth and TRS.
 - Uses both of the FM-1's cores: the strings and poly run on the second one.
 
+**Hear it:** [quadro-demo.mp3](app/docs/quadro-demo.mp3), a 2½-minute tour of eight programs. Play
+[quadro-demo.mid](app/docs/quadro-demo.mid) into your FM-1 (USB or Bluetooth MIDI, with MIDI clock) to hear it there.
+
 ## Install
 
 **From the browser:** [matttallison.github.io/quadro-fm1](https://matttallison.github.io/quadro-fm1/) has the web

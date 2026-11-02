@@ -17,6 +17,11 @@ on:
   push:
     tags: ['v[0-9]*']
   workflow_dispatch:
+    inputs:
+      release:
+        description: 'An existing release to build for and attach to (its tag, e.g. 1.0); empty: a test build'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -79,8 +84,10 @@ jobs:
         python3 -c "from PIL import features; assert features.check('raqm'), 'Pillow without raqm'"
         test "$(git -C "$AC79_SDK" rev-parse HEAD)" = d179b4484759423312073f5fbb232501aa491047
         mkdir -p build/release-assets
-        if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-          version=${GITHUB_REF_NAME#v}
+        tag="${{ github.event.inputs.release }}"
+        if [[ "$GITHUB_REF" == refs/tags/* ]]; then tag=$GITHUB_REF_NAME; fi
+        if [[ -n "$tag" ]]; then
+          version=${tag#v}
           ./build.sh --release "$version"
           cp "app/build/$pkg-$version.fwsc" build/release-assets/
           cp "app/build/$pkg.bin" "build/release-assets/$pkg-$version-app.bin"
@@ -129,3 +136,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: gh release edit "$GITHUB_REF_NAME" --draft=false
+      - name: Attach to the release named by hand (Run workflow, from main)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release != ''
+        working-directory: build/attested
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.event.inputs.release }}
+        run: gh release upload "$TAG" build/release-assets/* SHA256SUMS --clobber

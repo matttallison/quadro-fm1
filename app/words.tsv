@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # QUADRO's words for a screen reader: the text on the screen <TAB> what to say.
-# url: https://matttallison.github.io/matttallison-quadro-fm1/words/
+# url: https://matttallison.github.io/quadro-fm1/words/
 QUADRO	quadro
 STRG	strings
 PHAS	phaser

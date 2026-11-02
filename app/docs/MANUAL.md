@@ -34,7 +34,7 @@ reproduce 40–90 Hz. Set BASS OCTAVE to −1 for the original register on headp
 | **FX** | The phase shifter: inputs, then sweep |
 | **GLO** | The output mixer, then the room (reverb, delay, delay time) |
 | **HOME** | The four sections at a glance, with knobs 1–4 as their levels. Hold it for SETUP. |
-| **PRESET** knob | Loads a program, 1–68 ([the list](https://github.com/matttallison/matttallison-quadro-fm1/blob/main/app/docs/PRESETS.md)) |
+| **PRESET** knob | Loads a program, 1–68 ([the list](https://github.com/matttallison/quadro-fm1/blob/main/app/docs/PRESETS.md)) |
 | **SAVE** | Saves the current sound: PRESET picks the slot, SAVE again writes, any other button cancels |
 | **PLAY** | HOLD: the keys stay down, like the original's HOLD footswitch |
 | **REC** | SUSTAIN: the longest release |

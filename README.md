@@ -43,8 +43,8 @@ Read [the manual](app/docs/MANUAL.md). In short: **ALGO** picks the section, **E
 
 ## Build
 
-    git clone --recursive https://github.com/matttallison/matttallison-quadro-fm1
-    cd matttallison-quadro-fm1
+    git clone --recursive https://github.com/matttallison/quadro-fm1
+    cd quadro-fm1
     ./build.sh                    # app/build/quadro.fwsc
     ./build.sh --release 1.0      # app/build/quadro-1.0.fwsc
     sh tests/run_tests.sh         # the sound of all 68 programs, then the host simulator

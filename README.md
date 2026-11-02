@@ -23,7 +23,10 @@ each knob does as you turn it.
 
 ## Install
 
-Download `quadro-X.Y.fwsc` from [Releases](../../releases). Connect the FM-1 by USB, then:
+**From the browser:** [matttallison.github.io/quadro-fm1](https://matttallison.github.io/quadro-fm1/) has the web
+installer (Chrome or Edge, the FM-1 on USB), QUADRO running in the browser, and the manual.
+
+**From the command line:** download `quadro-X.Y.fwsc` from [Releases](../../releases). Connect the FM-1 by USB, then:
 
     python3 fm1_install.py quadro-X.Y.fwsc
 

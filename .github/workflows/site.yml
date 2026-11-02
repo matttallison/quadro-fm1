@@ -1,0 +1,69 @@
+# QUADRO's site on GitHub Pages: the front page, the web installer (Chrome or Edge), the emulator (QUADRO in the
+# browser), the manual. Built from the latest release's package (the attested one) after each release build, or by
+# hand (Actions > Site > Run workflow). Needs Settings > Pages > Source: GitHub Actions.
+name: Site
+
+on:
+  workflow_run:
+    workflows: ['Build and attest firmware']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: quadro-site
+  cancel-in-progress: false
+
+jobs:
+  site:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Python packages
+        run: |
+          sudo apt-get install -y -qq libfribidi0
+          python3 -m pip install Pillow
+          python3 -c "from PIL import features; assert features.check('raqm'), 'Pillow without raqm'"
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+
+      - name: The latest release's package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag=$(gh release view --json tagName --jq .tagName)
+          echo "VERSION=${tag#v}" >> "$GITHUB_ENV"
+          mkdir -p app/build
+          gh release download "$tag" --pattern '*.fwsc' --dir app/build --clobber
+          ls -l app/build
+
+      - name: The emulator and the site
+        run: |
+          set -euo pipefail
+          python3 base/tools/build.py app --web --release "$VERSION"
+          python3 base/tools/make_site.py app "app/build/quadro-$VERSION.fwsc" "$VERSION" _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

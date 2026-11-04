@@ -281,7 +281,7 @@ static void q_drift_step(void)
     uint32_t i;
     for (i = 0; i < Q_NV + 4u; i++) {
         int32_t d = q.drf[i];
-        q.drf[i] = d + ((int32_t)(q_rand(&q.seed) >> 29) - 3) - (d >> 11);
+        q.drf[i] = d + (int32_t)((q_rand(&q.seed) >> 24) % 7u) - 3 - (d >> 11);   /* (centred: 0..6 less 3) */
     }
 }
 static inline int32_t q_dct(uint32_t i) { return q.drf[i] * P(QP_DRIFT) / 1778; }

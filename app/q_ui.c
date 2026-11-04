@@ -37,6 +37,8 @@ static const uint16_t SEC_DARK[SEC_N] = {RGB(70, 22, 16), RGB(72, 52, 10), RGB(2
 
 #define NPROG 105u
 static q_patch_t progs[NPROG];                  /* the programs (flash: app.c) */
+static uint8_t cmp_on;                          /* TOOLS > COMPARE: the stored program is playing, the edit is kept in cmp_edit */
+static q_patch_t cmp_edit;
 
 static struct {
     uint8_t sec, page, home;                    /* home: the overview (the knobs are the mixer) */
@@ -52,9 +54,10 @@ static struct {
     uint32_t held;                              /* buttons held */
     uint32_t keys;                              /* keys down (0 = F3) */
     uint8_t midi_ch;                            /* 0 = omni, 1..16 */
+    uint8_t sch[4];                             /* a channel of its own for each section (0: the one above) */
     uint8_t ble_off;                            /* Bluetooth switched off in SETUP */
     uint8_t tsens;                              /* SETUP TOUCH: 0 off, 1 (least) .. 6; 2 by default */
-    uint8_t setup_page;                         /* SETUP: 0 MIDI / BLE / TOUCH / CLOCK, 1 TEMPO / RUN / FACTORY */
+    uint8_t setup_page;                         /* SETUP: 0 MIDI / BLE / TOUCH / CLOCK, 1 TEMPO / RUN / FACTORY, 2 CHANNELS, 3 TOOLS */
     uint8_t clk_out;                            /* CLOCK: QUADRO sends MIDI clock (and follows it itself) */
     uint8_t clk_running;                        /* RUN: START sent (STOP: no) */
     uint16_t tempo10;                           /* TEMPO x 10, 40.0 .. 240.0 BPM */
@@ -236,6 +239,35 @@ static int32_t accel(int32_t d, int32_t range)
     if (range <= 4) return d > 0 ? 1 : -1;  /* switches and short lists: one step a detent */
     return a >= 3 ? d * 3 : d;
 }
+
+/* TOOLS > TAP: each turn of the knob is a tap; two taps within a second and a half set the tempo */
+static void tap_tempo(void)
+{
+    static uint32_t last, span;
+    uint32_t now = QMS, dt = now - last;
+    last = now;
+    if (dt < 250u || dt > 1500u) { span = 0; return; }
+    span = span && span * 5u > dt * 4u && span * 4u < dt * 5u ? (span + dt) / 2u : dt;      /* (steady taps are averaged) */
+    ui.tempo10 = (uint16_t)q_clampi((int32_t)(600000u / span), 400, 2400);
+}
+/* TOOLS > RANDOM: new sound settings for each section (what is on, the levels, the effects and the keyboard stay) */
+static void sound_random(void)
+{
+    static const uint8_t R[][3] = {             /* parameter, lowest, highest */
+        {QP_B_CUT, 24, 90}, {QP_B_RES, 0, 90}, {QP_B_ENV, 20, 120}, {QP_B_DEC, 40, 110}, {QP_B_WAVE, 0, 3},
+        {QP_S_ATK, 0, 100}, {QP_S_REL, 20, 110}, {QP_S_ENS, 30, 127}, {QP_S_TONE, 40, 110},
+        {QP_P_CUT, 24, 110}, {QP_P_RES, 0, 100}, {QP_P_ENV, 0, 127}, {QP_P_A, 0, 80}, {QP_P_D, 20, 110}, {QP_P_S, 0, 127},
+        {QP_P_R, 10, 100}, {QP_P_WAVE, 0, 3}, {QP_P_DET, 0, 30},
+        {QP_L_WAVE, 0, 6}, {QP_L_CUT, 24, 110}, {QP_L_RES, 0, 100}, {QP_L_ENV, 0, 127}, {QP_L_A, 0, 60}, {QP_L_DEC, 20, 127},
+        {QP_L_R, 10, 100}, {QP_L_DET, 0, 30}, {QP_L_W2, 0, 4}, {QP_L_VCO2, 0, 1}, {QP_L_PWM, 0, 127}};
+    uint32_t i;
+    for (i = 0; i < sizeof R / sizeof R[0]; i++) {
+        int32_t lo = R[i][1], hi = R[i][2];
+        if (hi > QD[R[i][0]].max) hi = QD[R[i][0]].max;
+        qp.v[R[i][0]] = (int8_t)(lo + (int32_t)(q_rand(&q.seed) >> 8) % (hi - lo + 1));
+    }
+    qp.v[QP_L_SLOW] = (int8_t)((q_rand(&q.seed) >> 12) & 1u);
+}
 static void q_clock_run(int on);              /* app.c: START / STOP out (and to the sequencer) */
 static void knob(uint32_t n, int32_t d)
 {
@@ -246,13 +278,23 @@ static void knob(uint32_t n, int32_t d)
             if (n == 1 && FM1B_BLE) { ui.ble_off = d < 0; plat_ble_enable(!ui.ble_off); }
             if (n == 2) { ui.tsens = (uint8_t)q_clampi((int32_t)ui.tsens + (d > 0 ? 1 : -1), 0, 6); touch_sens((int)ui.tsens - 6); }
             if (n == 3) { ui.clk_out = d > 0; if (!ui.clk_out && ui.clk_running) q_clock_run(0); }
-        } else {
+        } else if (ui.setup_page == 1u) {
             if (n == 0) ui.tempo10 = (uint16_t)q_clampi((int32_t)ui.tempo10 + (d > 2 || d < -2 ? d * 10 : d * 5), 400, 2400);
             if (n == 1 && ui.clk_out) q_clock_run(d > 0);
             if (n == 3) {
                 if (!ui.factory_arm) { ui.factory_arm = 1; ui_say("TURN AGAIN: FACTORY"); }
                 else { ui.factory_arm = 0; ui.factory_req = 1; }
             }
+        } else if (ui.setup_page == 2u) {           /* a MIDI channel for each section: bass, strings, poly, lead */
+            ui.sch[n] = (uint8_t)q_clampi((int32_t)ui.sch[n] + (d > 0 ? 1 : -1), 0, 16);
+        } else {                                    /* TOOLS */
+            if (n == 0) tap_tempo();
+            if (n == 1) {                           /* COMPARE: the stored program against the edit */
+                if (d > 0 && !cmp_on) { cmp_edit = qp; qp = progs[ui.prog]; cmp_on = 1; }
+                else if (d < 0 && cmp_on) { qp = cmp_edit; cmp_on = 0; }
+                ui.pop_param = -1;
+            }
+            if (n == 2) { sound_random(); cmp_on = 0; ui.edited = 1; }
         }
         ui.store_req = 1;
         ui.force = 1;
@@ -276,6 +318,7 @@ static void knob(uint32_t n, int32_t d)
 
 static void prog_load(uint32_t k)
 {
+    cmp_on = 0;
     ui.prog = (uint8_t)(k % NPROG);
     qp = progs[ui.prog];
     ui.edited = 0;
@@ -375,8 +418,8 @@ static void draw_title(void)
         cv_text_on(10, 3, &FONT_S, QD[ui.pop_param].long_label, C_LBL, C_BG);
         text_bold(234 - text_w(&FONT_S, v), 3, v, col, C_BG);
     } else if (ui.setup) {
-        text_bold(10, 3, ui.setup_page ? "SETUP: CLOCK" : "SETUP", C_TXT, C_BG);
-        text_r(236, 3, ui.setup_page ? "2/2" : "1/2", C_LBL, C_BG);
+        text_bold(10, 3, ui.setup_page == 1u ? "SETUP: CLOCK" : ui.setup_page == 2u ? "SETUP: CHANNELS" : ui.setup_page == 3u ? "SETUP: TOOLS" : "SETUP", C_TXT, C_BG);
+        text_r(236, 3, ui.setup_page == 1u ? "2/4" : ui.setup_page == 2u ? "3/4" : ui.setup_page == 3u ? "4/4" : "1/4", C_LBL, C_BG);
     } else if (ui.home) {
         text_bold(10, 3, "OUTPUT MIXER", C_TXT, C_BG);
         text_r(236, 3, "HOME", C_LBL, C_BG);
@@ -920,7 +963,24 @@ static void vz_setup(void)
         cat(p, FM1B_CPU2 && plat_cpu2_on() ? "2 CORES" : "1 CORE");
         cv_text_on(6, 50, &FONT_S, b, C_LBL, C_BG);
         text_r(234, 50, "v" QD_VER, C_DIMT, C_BG);
-        cv_text_on(6, 68, &FONT_S, "EDIT: TEMPO, CLOCK, FACTORY", C_DIMT, C_BG);
+        cv_text_on(6, 68, &FONT_S, "EDIT: CLOCK, CHANNELS, TOOLS", C_DIMT, C_BG);
+    } else if (ui.setup_page == 2u) {
+        static const char *const SN[4] = {"BASS", "STRINGS", "POLY", "LEAD"};
+        uint32_t i;
+        for (i = 0; i < 4u; i++) {
+            cv_text_on(6, 6 + (int32_t)i * 16, &FONT_S, SN[i], C_LBL, C_BG);
+            if (ui.sch[i]) num(b, ui.sch[i], 0); else cat(b, ui.midi_ch ? "ALL" : "OMNI");
+            text_r(234, 6 + (int32_t)i * 16, b, C_TXT, C_BG);
+        }
+        cv_text_on(6, 70, &FONT_S, "EACH ON ITS OWN CHANNEL, OR 0: AS PAGE 1", C_DIMT, C_BG);
+    } else if (ui.setup_page == 3u) {
+        cv_text_on(6, 6, &FONT_S, "KNOB 1: TAP THE TEMPO", C_LBL, C_BG);
+        p = num(b, ui.tempo10 / 10, 0); *p++ = '.'; *p++ = (char)('0' + ui.tempo10 % 10); cat(p, " BPM");
+        text_r(234, 6, b, C_TXT, C_BG);
+        cv_text_on(6, 28, &FONT_S, "KNOB 2: COMPARE", C_LBL, C_BG);
+        text_r(234, 28, cmp_on ? "STORED" : "EDIT", C_TXT, C_BG);
+        cv_text_on(6, 50, &FONT_S, "KNOB 3: RANDOM SOUND", C_LBL, C_BG);
+        cv_text_on(6, 70, &FONT_S, "KEEPS WHAT IS ON, THE LEVELS AND FX", C_DIMT, C_BG);
     } else {
         cv_text_on(6, 6, &FONT_S, "MIDI CLOCK OUT", C_LBL, C_BG);
         text_r(234, 6, !ui.clk_out ? "OFF (KNOB 4, PAGE 1)" : q_mon.bpm10 && !ui.clk_running && 0 ? "" : "USB + BLUETOOTH", C_TXT, C_BG);
@@ -983,9 +1043,11 @@ static void draw_knobs(void)
         char v[16];
         if (n) cv_rect(x, 6, 1, 54, C_RULE);
         if (ui.setup) {
-            static const char *const L[2][4] = {{"MIDI", "BLE", "TOUCH", "CLOCK"}, {"TEMPO", "RUN", "", "FACT"}};
-            text_c(cx, 6, L[ui.setup_page & 1u][n], C_LBL, C_BG, 0);
-            if (!ui.setup_page) {
+            static const char *const L[4][4] = {{"MIDI", "BLE", "TOUCH", "CLOCK"}, {"TEMPO", "RUN", "", "FACT"}, {"BASS", "STRG", "POLY", "LEAD"}, {"TAP", "COMP", "RAND", ""}};
+            text_c(cx, 6, L[ui.setup_page & 3u][n], C_LBL, C_BG, 0);
+            if (ui.setup_page == 2u) { if (ui.sch[n]) num(v, ui.sch[n], 0); else cat(v, "-"); text_c(cx, 26, v, C_TXT, C_BG, 1); continue; }
+            if (ui.setup_page == 3u) { if (n == 0) { char *p = num(v, ui.tempo10 / 10, 0); *p = 0; text_c(cx, 26, v, C_TXT, C_BG, 1); } if (n == 1) text_c(cx, 26, cmp_on ? "STORED" : "EDIT", C_TXT, C_BG, 1); if (n == 2) text_c(cx, 26, "-->", C_TXT, C_BG, 1); continue; }
+            if (ui.setup_page == 0u) {
                 if (n == 0) { if (ui.midi_ch) num(v, ui.midi_ch, 0); else cat(v, "OMNI"); text_c(cx, 26, v, C_TXT, C_BG, 1); }
                 if (n == 1) text_c(cx, 26, !FM1B_BLE ? "--" : ui.ble_off ? "OFF" : "ON", C_TXT, C_BG, 1);
                 if (n == 2) { if (ui.tsens) num(v, ui.tsens, 0); else cat(v, "OFF"); text_c(cx, 26, v, C_TXT, C_BG, 1); }
@@ -1045,13 +1107,13 @@ static void ui_draw(void)
                                    (ui.msg_until > QMS) * 47u + (ui.pop_ms > QMS) * 53u + (uint32_t)ui.pop_param * 59u);
     if (ui.force || h != ui.sig_title) { ui.sig_title = h; draw_title(); }
     h = sig_of(&qp, sizeof qp, ui.page + ui.home * 31u + ui.setup * 37u + ui.keys * 3u + ui.oct * 5u + ui.midi_ch * 7u +
-                                   ui.factory_arm * 11u + ui.ble_off * 13u + ui.tsens * 29u + ui.setup_page * 37u + ui.clk_out * 41u + ui.clk_running * 43u + ui.tempo10 * 47u + (uint32_t)(FM1B_BLE && plat_ble_connected()) * 17u);
+                                   ui.factory_arm * 11u + ui.ble_off * 13u + ui.tsens * 29u + ui.setup_page * 37u + ui.clk_out * 41u + ui.clk_running * 43u + ui.tempo10 * 47u + ui.sch[0] * 3u + ui.sch[1] * 5u + ui.sch[2] * 7u + ui.sch[3] * 9u + cmp_on * 11u + (uint32_t)(FM1B_BLE && plat_ble_connected()) * 17u);
     if (ui.force || h != ui.sig_viz || (live && QMS - ui.viz_ms >= 66u)) {
         ui.sig_viz = h;
         ui.viz_ms = QMS;
         draw_viz();
     }
-    h = sig_of(&qp, sizeof qp, ui.page + ui.home * 31u + ui.setup * 37u + ui.midi_ch * 7u + ui.factory_arm * 11u + ui.ble_off * 19u + ui.tsens * 31u + ui.setup_page * 41u + ui.clk_out * 43u + ui.clk_running * 47u + ui.tempo10 * 53u +
+    h = sig_of(&qp, sizeof qp, ui.page + ui.home * 31u + ui.setup * 37u + ui.midi_ch * 7u + ui.factory_arm * 11u + ui.ble_off * 19u + ui.tsens * 31u + ui.setup_page * 41u + ui.clk_out * 43u + ui.clk_running * 47u + ui.tempo10 * 53u + ui.sch[0] * 3u + ui.sch[1] * 5u + ui.sch[2] * 7u + ui.sch[3] * 9u + cmp_on * 11u +
                                    (ui.pop_ms > QMS) * ui.col_touched * 13u);
     if (ui.force || h != ui.sig_knobs) { ui.sig_knobs = h; draw_knobs(); }
     ui.force = 0;
@@ -1075,7 +1137,7 @@ static void button(uint32_t b)
         ui.force = 1;
         return;
     }
-    if (ui.setup && b == B_EDIT) { ui.setup_page ^= 1u; ui.force = 1; return; }
+    if (ui.setup && b == B_EDIT) { ui.setup_page = (uint8_t)((ui.setup_page + 1u) & 3u); ui.force = 1; return; }
     switch (b) {
     case B_EDIT: open_kind(ui.sec, PK_EDIT); break;
     case B_ENV: open_kind(ui.sec, PK_ENV); break;
@@ -1163,10 +1225,11 @@ static void ui_select(int32_t d)                /* SELECT: the phaser's sweep sp
 
 /* the keys: F3 .. G5 (key 0 = F3) at the octave */
 /* the keyboard in a key: a pad's note snaps to the nearest note of the scale (a tie goes down), then TRANSPOSE */
-static uint32_t key_note(uint32_t k)
+/* the scale lock: a note moves to the nearest note of the KEY's SCALE (a tie goes down), then TRANSPOSE */
+static uint32_t scale_note(int32_t n)
 {
     static const uint16_t SCALES[9] = {0xFFF, 0xAB5, 0x5AD, 0x6AD, 0x6B5, 0x295, 0x4A9, 0x4E9, 0x9AD};   /* bit r: degree r (from the key) is in */
-    int32_t n = 53 + ui.oct * 12 + (int32_t)k, sc = qp.v[QP_SCALE];
+    int32_t sc = qp.v[QP_SCALE];
     if (sc > 0 && sc < 9) {
         int32_t key = qp.v[QP_KEY], r = ((n - key) % 12 + 12) % 12, d;
         for (d = 0; d < 7; d++) {
@@ -1176,6 +1239,7 @@ static uint32_t key_note(uint32_t k)
     }
     return (uint32_t)q_clampi(n + qp.v[QP_TRANSP], 0, 127);
 }
+static uint32_t key_note(uint32_t k) { return scale_note(53 + ui.oct * 12 + (int32_t)k); }
 static void q_midi_key(uint32_t note, uint32_t vel, int on);   /* app.c: the key out over MIDI too */
 static uint8_t key_sent[NKEYS];                 /* the note each key sent (an octave change between down and up) */
 static void key_down_v(uint32_t k, uint32_t vel) { ui.keys |= 1u << k; key_sent[k] = (uint8_t)key_note(k); q_post(QE_ON, key_sent[k]); q_midi_key(key_sent[k], vel, 1); }

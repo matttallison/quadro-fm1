@@ -30,7 +30,7 @@ int main(int argc, char **argv)
     while (et >= 0 || t < end + 4.0) {
         while (et >= 0 && et <= t) {
             switch (b[0] & 0xF0) {
-            case 0x90: q_key((uint8_t)b[1], b[2] != 0); break;
+            case 0x90: if (b[2]) { q.nvel[b[1] & 127] = b[2]; q.cmask = 15; } q_key((uint8_t)b[1], b[2] != 0); break;
             case 0x80: q_key((uint8_t)b[1], 0); break;
             case 0xE0: q.bend = ((int32_t)(b[1] | b[2] << 7) - 8192) * 32 / 8192; break;
             case 0xD0: q.touch_tgt = (int32_t)b[1]; break;

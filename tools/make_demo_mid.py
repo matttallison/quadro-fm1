@@ -23,7 +23,7 @@ def chord(t, ns, d, v=96):
 
 
 def prog(t, p):
-    ev.append((t, 0, bytes([0xC0, p])))
+    ev.append((t, 0, bytes([0xC0, p + 16])))   # (the Quadra's sixteen come first: 1-16)
 
 
 def cc(t, c, v):

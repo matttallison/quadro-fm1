@@ -212,6 +212,7 @@ typedef struct {
     uint8_t ss, ps;                             /* their stages (1 attack, 2 held / decay, 3 release, 0 off) */
     int32_t z[4];                               /* the poly VCF */
     int32_t sg, pg;                             /* last block's gains (ramped) */
+    uint8_t vel, smask;                         /* its key's velocity, and whether strings (2) and poly (4) take it */
 } q_voice_t;
 
 static struct {
@@ -238,8 +239,8 @@ static struct {
     struct {
         uint8_t gate, stage, note1, note2;
         int32_t t1, t2, p1, p2, env, g, vib;    /* targets / pitches (1/16 st), Q24 env, gain, vibrato ramp Q15 */
-        uint32_t ph1, ph2, trph, arpph, subph;
-        uint8_t arpi, arpup, trill_hi, odd, cut;
+        uint32_t ph1, ph2, trph, arpph, subph, ph1u, ph1d;   /* (ph1u, ph1d: the UNISON copies of VCO 1) */
+        uint8_t arpi, arpup, trill_hi, odd, cut, accent, tie;   /* (STEP: the step is accented; the last step is tied into this one) */
         uint32_t stepn, steplen;                /* blocks since the step began, the last step's length in blocks (the gate) */
         int32_t z[4];
     } l;
@@ -247,6 +248,8 @@ static struct {
     int32_t lfo_v, lfo_sh;                      /* the LFO's value now (Q15, its SHAPE), the S&H's held value */
     int32_t sh, sh_tgt;                         /* sample and hold */
     uint32_t sh_ph, seed;
+    uint8_t nvel[128], nmask[128];              /* each key's velocity (MIDI in), and the sections it plays (MIDI channels: 1 bass, 2 strings, 4 poly, 8 lead) */
+    uint8_t cmask, latched;                     /* the sections the key being pressed goes to; the sequencer's own HOLD is on */
     int32_t drf[Q_NV + 4];                      /* analog drift: a slow random pitch wander for each voice, the bass and the lead's two VCOs */
     /* the strings' bus and the ensemble */
     int32_t sbus[Q_BLK], pbus[Q_BLK], bbus[Q_BLK], lbus[Q_BLK], sbbus[Q_BLK];   /* (sbbus: the string bass, CPU0's) */
@@ -282,6 +285,11 @@ static void q_drift_step(void)
     }
 }
 static inline int32_t q_dct(uint32_t i) { return q.drf[i] * P(QP_DRIFT) / 1778; }
+/* VELOCITY (MIDI in): the level scales 1 .. 1 as the amount goes 127 .. 0; the cutoff moves with it (72 is where it stays) */
+static inline int32_t q_vsc(int32_t amt, int32_t vel) { return 32767 - ((amt * (127 - vel)) << 1); }
+static inline int32_t q_vcut(int32_t amt, int32_t vel) { return (vel - 72) * amt; }
+/* HOLD, or the sequencer's LATCH while it plays */
+static inline int q_holding(void) { return q.hold || (P(QP_ARP) && P(QP_ARP_LATCH)); }
 
 /* ------------------------------------------------------------------ keys --- */
 static int q_bass_on(void) { return P(QP_B_EB16) | P(QP_B_EB8) | P(QP_B_SB16) | P(QP_B_SB8); }
@@ -335,6 +343,8 @@ static void q_voice_on(uint8_t note, uint8_t root)
     }
     v->note = note;
     v->root = root;
+    v->vel = q.nvel[root & 127u];
+    v->smask = q.nmask[root & 127u];
     v->gate = v->held = v->on = 1;
     v->ss = v->ps = 1;
     v->age = ++q.age;
@@ -343,12 +353,13 @@ static void q_voice_on(uint8_t note, uint8_t root)
 static void q_key(uint8_t note, int on)
 {
     if (on) {
-        if (q.hold && !q.nphys) {               /* HOLD: a new hand after letting go replaces what was latched */
+        if (q_holding() && !q.nphys) {          /* HOLD: a new hand after letting go replaces what was latched */
             uint32_t i;
             for (i = 0; i < Q_NV; i++)
                 q.v[i].gate = 0;
             q.nheld = 0;
         }
+        q.nmask[note & 127u] = q.cmask;
         held_add(q.phys, &q.nphys, note);
         held_add(q.held, &q.nheld, note);
         {   /* CHORD: the key plays its shape on the strings and the poly (the bass and the lead take the key) */
@@ -368,7 +379,7 @@ static void q_key(uint8_t note, int on)
     } else {
         uint32_t i;
         held_del(q.phys, &q.nphys, note);
-        if (q.hold)
+        if (q_holding())
             return;                             /* latched */
         held_del(q.held, &q.nheld, note);
         for (i = 0; i < Q_NV; i++)
@@ -452,7 +463,7 @@ static void q_events(void)
         uint32_t e = qev_ring[qev_r % QEV_N], a = e >> 8;
         qev_r++;
         switch (e & 255u) {
-        case QE_ON: q_key((uint8_t)(a & 127u), 1); break;
+        case QE_ON: q.nvel[a & 127u] = 100; q.cmask = 15; q_key((uint8_t)(a & 127u), 1); break;
         case QE_OFF: q_key((uint8_t)(a & 127u), 0); break;
         case QE_HOLD: q_set_hold((int)a); break;
         case QE_SUS: q.sustain = (uint8_t)a; break;
@@ -484,7 +495,7 @@ static __attribute__((noinline)) void q_bass(void)
     int32_t i, low = -1, split = P(QP_CHBASS) ? 128 : P(QP_SPLIT), e0 = q.b.env, e1, se0 = q.b.sbe, se1, g1, sg1;
     int32_t eb = P(QP_B_EB16) | P(QP_B_EB8), sb = P(QP_B_SB16) | P(QP_B_SB8);
     for (i = 0; i < (int32_t)q.nheld; i++)       /* the lowest key below the split */
-        if (q.held[i] < split && (low < 0 || q.held[i] < low))
+        if (q.held[i] < split && (q.nmask[q.held[i] & 127u] & 1u) && (low < 0 || q.held[i] < low))
             low = q.held[i];
     if (!q_bass_on())
         low = -1;
@@ -543,6 +554,8 @@ static __attribute__((noinline)) void q_bass(void)
     q_mon.bass_note = q.b.gate ? q.b.note : 0;
     g1 = eb ? qm15(e1 >> 9, 26000) : 0;
     sg1 = sb ? qm15(qm15(se1 >> 9, q_gain(P(QP_B_SBVOL))), 9000) : 0;
+    {   int32_t bv = q_vsc(P(QP_VL_B), q.nvel[q.b.note & 127u]);
+        g1 = qm15(g1, bv), sg1 = qm15(sg1, bv); }
     if (!g1 && !q.b.g && !sg1 && !q.b.sg)
         return;
     {
@@ -553,7 +566,7 @@ static __attribute__((noinline)) void q_bass(void)
         int32_t eq = e1 >> 9;
         uint32_t pw = 0x80000000u - (uint32_t)eq * 0x8000u;            /* 50 % -> 25 % at the envelope's top */
         int32_t cut = (P(QP_B_CUT) << 8) + ((eq * P(QP_B_ENV)) >> 8) + ((((int32_t)q.b.note - 48) * P(QP_B_KBD) * 13) >> 2) +
-                      ((q.lfo_v * P(QP_B_LFO)) >> 9);
+                      ((q.lfo_v * P(QP_B_LFO)) >> 9) + q_vcut(P(QP_VF_B), q.nvel[q.b.note & 127u]);
         int32_t g0 = q.b.g, dg = (g1 - g0) / Q_BLK, s0 = q.b.sg, ds = (sg1 - s0) / Q_BLK;
         int32_t w16 = P(QP_B_EB16), w8 = P(QP_B_EB8), s16 = P(QP_B_SB16), s8 = P(QP_B_SB8);
         int32_t bw = P(QP_B_WAVE), fm = P(QP_B_FMODE), drv = P(QP_B_DRIVE);
@@ -719,8 +732,8 @@ static __attribute__((noinline)) void q_voices(void)
         if ((se1 >> 9) > ens_env) ens_env = se1 >> 9;
         if ((pe1 >> 9) > ens_env) ens_env = pe1 >> 9;
         poly = pgain && v->note >= split;
-        sg1 = sgain ? qm15(se1 >> 9, 7000) : 0;
-        pg1 = poly ? qm15(qm15(pe1 >> 9, 9000), trem) : 0;
+        sg1 = sgain && (v->smask & 2u) ? qm15(qm15(se1 >> 9, 7000), q_vsc(P(QP_VL_S), v->vel)) : 0;
+        pg1 = poly && (v->smask & 4u) ? qm15(qm15(qm15(pe1 >> 9, 9000), trem), q_vsc(P(QP_VL_P), v->vel)) : 0;
         if (!sg1 && !v->sg && !pg1 && !v->pg)
             continue;
         {
@@ -736,7 +749,7 @@ static __attribute__((noinline)) void q_voices(void)
             int32_t usep = pg1 | g0, strs = sg1 | s0, fm = P(QP_P_FMODE);
             if (usep) {                         /* VCF: cutoff, the ADSR, key tracking (half: 2 V/oct), the LFO */
                 int32_t cut = (P(QP_P_CUT) << 8) + (((pe1 >> 9) * P(QP_P_ENV)) >> 7) +
-                              ((((int32_t)v->note - 60) * P(QP_P_KBD) * 13) >> 2) + ((lfo * P(QP_P_LFO)) >> 10);
+                              ((((int32_t)v->note - 60) * P(QP_P_KBD) * 13) >> 2) + ((lfo * P(QP_P_LFO)) >> 10) + q_vcut(P(QP_VF_P), v->vel);
                 q_svf_coef(&f1, cut, P(QP_P_RES));
                 q_svf_coef(&f2, cut, 0);
             }
@@ -884,7 +897,7 @@ static __attribute__((noinline)) void q_lead(void)
     int32_t e0 = q.l.env, e1 = e0, retrig = 0, newgate;
     uint8_t notes[Q_NHELD];
     for (i = 0; i < (int32_t)q.nheld; i++)
-        if (q.held[i] >= split) {
+        if (q.held[i] >= split && (q.nmask[q.held[i] & 127u] & 8u)) {
             notes[n++] = q.held[i];
             if (lo < 0 || q.held[i] < lo) lo = q.held[i];
             if (hi < 0 || q.held[i] > hi) hi = q.held[i];
@@ -892,7 +905,7 @@ static __attribute__((noinline)) void q_lead(void)
     newgate = n > 0;
     if (P(QP_ARP) && n) {                       /* the sequencer: the lead's keys in order, over 1..3 octaves */
         uint32_t step = Q_LFO_INC[72 + P(QP_TRSPD) * 55 / 127];
-        int32_t k, j, sorted[Q_NHELD], mode = P(QP_ARP), len = mode == 5 ? qclamp(P(QP_SQ_LEN), 1, 16) : n * qclamp(P(QP_ARP_OCT), 1, 3), idx, rest = 0, cut = 0, cyc = mode >= 6 && mode != 10 ? len * 2 : len;
+        int32_t k, j, sorted[Q_NHELD], mode = P(QP_ARP), len = mode == 5 ? qclamp(P(QP_SQ_LEN), 1, 16) : n * qclamp(P(QP_ARP_OCT), 1, 4), idx, rest = 0, cut = 0, cyc = mode >= 6 && mode != 10 ? len * 2 : len;
         for (k = 0; k < n; k++) sorted[k] = notes[k];
         for (k = 1; mode != 10 && k < n; k++)    /* (insertion sort: a handful; PLAYED keeps the order the keys went down) */
             for (j = k; j > 0 && sorted[j - 1] > sorted[j]; j--) { int32_t t = sorted[j]; sorted[j] = sorted[j - 1]; sorted[j - 1] = t; }
@@ -919,7 +932,7 @@ static __attribute__((noinline)) void q_lead(void)
             q.l.stepn = 0;
             q.l.odd ^= 1u;
             switch (mode) {
-            case 5: q.l.arpi = (uint8_t)((q.l.arpi + 1) % len); break;                       /* STEP */
+            case 5: q.l.tie = P(QP_SQT0 + q.l.arpi % 16) == 2; q.l.arpi = (uint8_t)((q.l.arpi + 1) % len); break;   /* STEP */
             case 6: case 7: case 8: case 9: case 10: case 11:                                  /* PEDAL THUMB CONV DIVERGE PLAYED SKIP: a counter */
                 q.l.arpi = (uint8_t)((q.l.arpi + 1) % cyc);
                 break;
@@ -939,7 +952,7 @@ static __attribute__((noinline)) void q_lead(void)
                 }
                 break;
             }
-            retrig = 1;
+            retrig = mode == 5 && q.l.tie ? 0 : 1;      /* a TIE: the next step runs on without a new attack */
         }
         if (q.l.arpi >= cyc) q.l.arpi = 0;
         idx = q.l.arpi;
@@ -970,6 +983,8 @@ static __attribute__((noinline)) void q_lead(void)
         }
         if (q.l.steplen > 8u && q.l.stepn * 100u >= q.l.steplen * (uint32_t)qclamp(P(QP_SQ_GATE), 5, 100))
             cut = 1;                            /* the gate: the step's note ends early */
+        q.l.accent = (uint8_t)(mode == 5 && !rest && P(QP_SQT0 + idx % 16) == 1);
+        if (mode == 5 && P(QP_SQT0 + idx % 16) == 2) cut = 0;      /* tied into the next: no early gate */
         if (rest || cut) q.l.cut = 1; else q.l.cut = 0;
         q_mon.arp_step = (uint8_t)idx;
     }
@@ -993,7 +1008,7 @@ static __attribute__((noinline)) void q_lead(void)
     if (retrig)
         q.l.stage = 1;
     if (!(P(QP_ARP) && n))
-        q.l.cut = 0;
+        q.l.cut = 0, q.l.accent = 0, q.l.tie = 0;
     if ((!q.l.gate || q.l.cut) && q.l.stage && q.l.stage < 5u)
         q.l.stage = 5;
     {   /* ADS/ASR: 1 attack, 2 the preset decay to DECAY's level, 3 the second attack, 4 full, 5 release;
@@ -1055,6 +1070,8 @@ static __attribute__((noinline)) void q_lead(void)
         int32_t g1 = qm15(qm15(e1 >> 9, 22000), P(QP_L_TOUCH) == 2 ? 26000 + (q.touch >> 8) * 53 : 32767), g0 = q.l.g, dg;   /* ... and louder */
         if (P(QP_ARP))                          /* the sequencer's short steps: as loud as a held lead */
             g1 = g1 * 2;
+        g1 = qm15(g1, q_vsc(P(QP_VL_L), q.nvel[q.l.note1 & 127u]));
+        if (q.l.accent) g1 = g1 * 3 / 2;        /* ACCENT: a step half as loud again */
         if (!g1 && !g0)
             return;
         dg = (g1 - g0) / Q_BLK;
@@ -1070,7 +1087,7 @@ static __attribute__((noinline)) void q_lead(void)
             int32_t sub = P(QP_L_SUB), nz = P(QP_L_NOISE), sync = P(QP_L_SYNC) && two, fm = P(QP_L_FMODE), drv = P(QP_L_DRIVE);
             uint32_t pw2;
             int32_t cut = (P(QP_L_CUT) << 8) + ((eq * P(QP_L_ENV)) >> 7) + ((((q.l.p2 >> 4) - 60) * P(QP_L_KBD) * 13) >> 2) +
-                          (P(QP_L_TOUCH) == 2 ? (q.touch >> 8) * 24 : 0);   /* VOL / BRILL: brighter ... */
+                          (P(QP_L_TOUCH) == 2 ? (q.touch >> 8) * 24 : 0) + q_vcut(P(QP_VF_L), q.nvel[q.l.note1 & 127u]);   /* VOL / BRILL: brighter ... */
             q_svf_t f1, f2;
             switch (wave) {                     /* the pulse width: 10 % mode 25 .. 60 %, 50 % mode 60 .. 80 % */
             case 2: pw = 0x1999999Au; break;
@@ -1079,10 +1096,17 @@ static __attribute__((noinline)) void q_lead(void)
             default: pw = 0x80000000u; break;
             }
             pw2 = P(QP_L_W2) ? 0x80000000u : pw;                         /* (VCO 2 as a square of its own: 50 %) */
+            int32_t uni = P(QP_L_UNI), uct = uni * 18 / 127 + 1;       /* UNISON: two copies of VCO 1, up to +- 19 cents */
+            uint32_t incu = uni ? q_cents(inc1, uct) : 0, incw = uni ? q_cents(inc1, -uct) : 0, pu = q.l.ph1u, pd = q.l.ph1d;
             q_svf_coef(&f1, cut, P(QP_L_RES));
             q_svf_coef(&f2, cut, 0);
             for (i = 0; i < Q_BLK; i++) {
                 int32_t x = q_lw(wave, ph1, inc1, pw);
+                if (uni) {
+                    x = (x * 2 + q_lw(wave, pu, incu, pw) + q_lw(wave, pd, incw, pw)) >> 2;
+                    pu += incu;
+                    pd += incw;
+                }
                 if (two)
                     x = (x + q_lw(w2, ph2, inc2, pw2)) >> 1;
                 if (sub)                        /* the sub oscillator: a square an octave under VCO 1 */
@@ -1097,7 +1121,7 @@ static __attribute__((noinline)) void q_lead(void)
                 q.lbus[i] += qm15(q_filt(&f1, &f2, q_drive(x >> 1, drv), q.l.z, fm), g0);
                 g0 += dg;
             }
-            q.l.ph1 = ph1, q.l.ph2 = ph2, q.l.subph = subph;
+            q.l.ph1 = ph1, q.l.ph2 = ph2, q.l.subph = subph, q.l.ph1u = pu, q.l.ph1d = pd;
         }
         q.l.g = g1;
     }
@@ -1107,7 +1131,6 @@ static __attribute__((noinline)) void q_lead(void)
 static void q_voices_job(uint32_t a)
 {
     (void)a;
-    q_drift_step();
     if (P(QP_PARA)) q_voices_para(); else q_voices();
 }
 #ifndef Q_PAR_RUN
@@ -1249,6 +1272,9 @@ static void q_block(int32_t *out)
     int32_t rev = P(QP_REV) * 200, dly = P(QP_DLY) * 200;
     uint32_t pk[4] = {0, 0, 0, 0};
     q_events();
+    q_drift_step();
+    if (q.latched && !q_holding()) q_set_hold(0);           /* LATCH off, or the sequencer: let go */
+    q.latched = (uint8_t)q_holding();
     q.samples += Q_BLK;
     q.clk_run = q.clk_last && q.samples - q.clk_last < Q_FS / 2u;
     if (!q.clk_run)
@@ -1362,6 +1388,9 @@ static inline int32_t q_out(int32_t v)
 
 static void q_init(void)
 {
+    uint32_t i;
     q.seed = 0x1234567u;
+    for (i = 0; i < 128u; i++) q.nvel[i] = 100, q.nmask[i] = 15;
+    q.cmask = 15;
     q_master_reset();
 }

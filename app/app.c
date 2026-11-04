@@ -55,30 +55,73 @@ static void q_midi_key(uint32_t note, uint32_t vel, int on)
     plat_midi_send((st >> 4) | st << 8 | (note & 127u) << 16 | (on ? (vel ? vel : 1u) & 127u : 0u) << 24, TO_USB | TO_BLE);
 }
 
+/* the sections a channel's messages go to: one with a channel of its own takes only that, the others the channel of SETUP
+ * page 1 (or any, with OMNI) */
+static uint8_t midi_map[128];                    /* the note each MIDI key sounds as (the scale lock, TRANSPOSE) */
+static uint32_t midi_mask(uint32_t ch)
+{
+    uint32_t s, m = 0;
+    for (s = 0; s < 4u; s++)
+        if (ui.sch[s] ? ch + 1u == ui.sch[s] : (!ui.midi_ch || ch + 1u == ui.midi_ch))
+            m |= 1u << s;
+    return m;
+}
+/* the controllers: the mod wheel, the pedal, then the sounds of the section on the screen (CC 71 RESONANCE, 72 RELEASE,
+ * 73 ATTACK, 74 CUTOFF), the sends (91 REVERB, 93 CHORUS, 94 DELAY) and the four levels (20-23) */
+static void midi_cc(uint32_t cc, uint32_t v)
+{
+    static const uint8_t CUT[4] = {QP_B_CUT, QP_S_TONE, QP_P_CUT, QP_L_CUT}, RES[4] = {QP_B_RES, QP_S_ENS, QP_P_RES, QP_L_RES},
+                         ATK[4] = {QP_B_ENV, QP_S_ATK, QP_P_A, QP_L_A}, REL[4] = {QP_B_DEC, QP_S_REL, QP_P_R, QP_L_R};
+    uint32_t s = ui.sec < 4u ? ui.sec : SEC_POLY, id = QP_N;
+    if (cc == 74u) id = CUT[s];
+    else if (cc == 71u) id = RES[s];
+    else if (cc == 73u) id = ATK[s];
+    else if (cc == 72u) id = REL[s];
+    else if (cc == 91u) id = QP_REV;
+    else if (cc == 93u) id = QP_X_CHR;
+    else if (cc == 94u) id = QP_DLY;
+    else if (cc >= 20u && cc <= 23u) id = QP_M_B + (cc - 20u);
+    if (id < QP_N)
+        qp.v[id] = (int8_t)q_clampi((int32_t)v, QD[id].min, QD[id].max);
+}
+
 /* the audio interrupt: what came in plays at once (q_key and the rest belong to this context) */
 static void midi_in_isr(void)
 {
     uint32_t pkt;
     int port;
     while (plat_midi_in(&pkt, &port)) {
-        uint32_t st = (pkt >> 8) & 0xFFu, ty = st & 0xF0u, ch = st & 15u, d1 = (pkt >> 16) & 0x7Fu, d2 = (pkt >> 24) & 0x7Fu;
+        uint32_t st = (pkt >> 8) & 0xFFu, ty = st & 0xF0u, ch = st & 15u, d1 = (pkt >> 16) & 0x7Fu, d2 = (pkt >> 24) & 0x7Fu, mask;
         if (st == 0xF8u || st == 0xFAu || st == 0xFBu || st == 0xFCu) {   /* the clock: any channel, any port */
             if (st == 0xF8u) clk_ext_ms = plat_ms() ? plat_ms() : 1u;
             q_clock(st);
             continue;
         }
-        if (st >= 0xF0u || (ui.midi_ch && ch + 1u != ui.midi_ch))
+        if (st >= 0xF0u)
+            continue;
+        mask = midi_mask(ch);
+        if (!mask)
             continue;
         switch (ty) {
-        case 0x90u: q_key((uint8_t)d1, d2 != 0u); break;
-        case 0x80u: q_key((uint8_t)d1, 0); break;
+        case 0x90u:
+            if (d2) {
+                uint32_t m = qp.v[QP_MIDI_LOCK] ? scale_note((int32_t)d1) : d1;    /* the scale lock and TRANSPOSE, if set to reach MIDI in */
+                midi_map[d1] = (uint8_t)m;
+                q.nvel[m] = (uint8_t)d2;
+                q.cmask = (uint8_t)mask;
+                q_key((uint8_t)m, 1);
+            } else {
+                q_key(midi_map[d1], 0);
+            }
+            break;
+        case 0x80u: q_key(midi_map[d1], 0); break;
         case 0xE0u: q.bend = ((int32_t)(d1 | d2 << 7) - 8192) * 32 / 8192; break;   /* +- 2 semitones */
         case 0xD0u: q.touch_tgt = (int32_t)d1; break;                                  /* channel pressure: the TOUCH SENSOR */
         case 0xC0u: midi_prog = (int16_t)(d1 % NPROG); break;
         case 0xB0u:
             if (d1 == 1u) q.modw = (int32_t)d2;                                    /* the mod wheel: the lead's vibrato */
             else if (d1 == 64u) { q.sustain = d2 >= 64u; midi_sus = q.sustain; }
-            else if (d1 == 74u) qp.v[ui.sec == SEC_LEAD ? QP_L_CUT : ui.sec == SEC_BASS ? QP_B_CUT : QP_P_CUT] = (int8_t)d2;
+            else if (d1 == 74u || d1 == 71u || d1 == 72u || d1 == 73u || d1 == 91u || d1 == 93u || d1 == 94u || (d1 >= 20u && d1 <= 23u)) midi_cc(d1, d2);
             else if (d1 == 120u || d1 == 123u) q_all_off();
             break;
         default: break;
@@ -134,7 +177,8 @@ static uint32_t qs_pack(uint8_t *b, uint32_t k)
     for (i = k * QS_PART; i < (k + 1u) * QS_PART && i < NPROG; i++) {
         q_patch_t f;
         q_factory(&f, i);
-        if (memcmp(f.v, progs[i].v, QP_N) || memcmp(f.name, progs[i].name, QD_NAME)) {
+        if ((memcmp(f.v, progs[i].v, QP_N) || memcmp(f.name, progs[i].name, QD_NAME)) &&
+            (uint32_t)(p - b) + 1u + QD_NAME + QP_N + 16u <= PLAT_STORE_MAX) {    /* (a part that is full keeps what fits: room is left for the settings) */
             *p++ = (uint8_t)i;
             memcpy(p, progs[i].name, QD_NAME); p += QD_NAME;
             memcpy(p, progs[i].v, QP_N); p += QP_N;
@@ -149,6 +193,7 @@ static uint32_t qs_pack(uint8_t *b, uint32_t k)
         *p++ = ui.clk_out;
         *p++ = (uint8_t)(ui.tempo10 & 255u);
         *p++ = (uint8_t)(ui.tempo10 >> 8);
+        *p++ = ui.sch[0]; *p++ = ui.sch[1]; *p++ = ui.sch[2]; *p++ = ui.sch[3];
     }
     return (uint32_t)(p - b);
 }
@@ -163,6 +208,10 @@ static void qs_settings(const uint8_t *p, uint32_t left)     /* the settings byt
     if (left >= 7u) {
         ui.clk_out = p[4] ? 1u : 0u;
         ui.tempo10 = (uint16_t)q_clampi(p[5] | p[6] << 8, 400, 2400);
+    }
+    if (left >= 11u) {
+        uint32_t s;
+        for (s = 0; s < 4u; s++) ui.sch[s] = (uint8_t)(p[7 + s] <= 16u ? p[7 + s] : 0u);
     }
 }
 static int qs_unpack(const uint8_t *b, uint32_t len, int settings)
@@ -337,6 +386,9 @@ int app_expect(const char *what, int *got)
 {
     if (!strcmp(what, "prog")) *got = ui.prog + 1;
     else if (!strcmp(what, "nprog")) *got = NPROG;
+    else if (!strncmp(what, "sch", 3)) *got = ui.sch[atoi(what + 3) & 3];
+    else if (!strcmp(what, "cmp")) *got = cmp_on;
+    else if (!strcmp(what, "tempo10")) *got = ui.tempo10;
     else if (!strcmp(what, "section")) *got = ui.sec;
     else if (!strcmp(what, "page")) *got = (int)ui.page;
     else if (!strcmp(what, "pwave")) *got = qp.v[QP_P_WAVE];

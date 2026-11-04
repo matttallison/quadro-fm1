@@ -96,11 +96,12 @@ unchanged. They are saved with each program.
 
 SEL > SCALE sets the keyboard to a key: KEY (C to B) and SCALE (OFF, MAJOR, MINOR, DORIAN, MIXOLYD, PENT MAJ, PENT MIN,
 BLUES, HARM MIN). Each pad plays the nearest note of the scale (a tie goes down), so every pad is in key. TRNSP shifts
-the whole keyboard up to an octave either way. MIDI in plays what it is sent.
+the whole keyboard up to an octave either way. MIDI in plays what it is sent unless the page's fourth knob, MIDI, is on: then the
+scale lock and TRNSP apply to the keys you play over MIDI as well.
 
 ## Starting a sound
 
-Program 89, INIT, is a plain starting point: the poly on its own, a saw, the filter open, no effects. Turn a section's
+Program 105, INIT, is a plain starting point: the poly on its own, a saw, the filter open, no effects. Turn a section's
 footage on (VOICES) or its level up (HOME) and it sounds: the footage brings the level up to 100, and a level raised from
 zero turns on its first footage. Keys below the split play the bass whenever a bass voice is on.
 
@@ -113,14 +114,16 @@ zero turns on its first footage. Keys below the split play the bass whenever a b
 - **Paraphonic.** PARA gives the strings and poly one shared envelope and filter. Each new key restarts it.
 - **Touch.** The FM-1's keys sense pressure. On the lead, TOUCH is BEND (pressure bends up) or BRILL (pressure opens
   the filter). SETUP > TOUCH sets how much it responds: 0 is off, 1 needs the hardest press, 6 the lightest (2 by default).
-- **Sequencer.** The lead runs UP, UP/DN, DOWN, RAND, PEDAL (the lowest key between each note), THUMB (the highest between each), CONV (out-in from both ends), DIVRG (in-out), PLAYED (the order the keys went down) or SKIP (0 2 1 3 2 4 …) over the keys held, across 1–3 octaves. PLAY (HOLD) keeps
-  it running hands-free. Without a clock it runs at SPEED; with MIDI clock it locks to SYNC (1/4 to 1/32, with
+- **Lead unison.** FILTER > UNISON (the fourth knob) adds two copies of VCO 1 detuned up to ±19 cents each way, for a fat, beating lead.
+- **Sequencer.** The lead runs UP, UP/DN, DOWN, RAND, PEDAL (the lowest key between each note), THUMB (the highest between each), CONV (out-in from both ends), DIVRG (in-out), PLAYED (the order the keys went down) or SKIP (0 2 1 3 2 4 …) over the keys held, across 1–4 octaves (RANGE). PLAY (HOLD) keeps
+  it running hands-free, or turn LATCH on (the GATE page) and the sequencer keeps playing by itself after you let go of the keys; a new hand replaces what was latched. Without a clock it runs at SPEED; with MIDI clock it locks to SYNC (1/4 to 1/32, with
   triplets).
 - **Step sequencer.** SEQ = STEP plays a pattern of up to 16 steps over the lowest key you hold on the lead: each
   step is a semitone offset (−24 to +24) or REST. Press ARP to step through its pages: SEQUENCER (mode, speed, sync),
-  GATE (LENGTH 1–16, GATE 5–100 % of each step, SWING), then STEPS 1–4 … 13–16. GATE works in every sequencer mode;
+  GATE (LENGTH 1–16, GATE 5–100 % of each step, SWING, LATCH), then STEPS 1–4 … 13–16 and ACCENTS 1–4 … 13–16, where each step
+  can be an ACCENT (half as loud again) or a TIE (it runs on into the next step with no new attack and no early gate). GATE works in every sequencer mode;
   SWING runs when the sequencer is free-running (not locked to a clock). The screen draws the pattern, with the step
-  playing lit. Programs 81–84 are examples.
+  playing lit. Programs 97–100 are examples.
 
 ![CHORD+BASS: one key, a chord and its bass](img/chord.png)
 
@@ -130,26 +133,32 @@ zero turns on its first footage. Keys below the split play the bass whenever a b
 
 ## SETUP
 
-Hold HOME. Press EDIT to switch between the two pages. Press HOME to leave.
+Hold HOME. Press EDIT to step through the four pages. Press HOME to leave.
 
 | Page | Knob 1 | Knob 2 | Knob 3 | Knob 4 |
 | --- | --- | --- | --- | --- |
 | 1 | MIDI channel (OMNI, 1–16) | Bluetooth MIDI on/off | TOUCH: 0 off, 1 (least) – 6 (most sensitive) | CLOCK OUT on/off |
 | 2 | TEMPO (internal clock) | RUN: START / STOP | — | FACT: turn twice to restore the 105 factory programs |
+| 3 | BASS channel | STRINGS channel | POLY channel | LEAD channel |
+| 4 | TAP: turn the knob in time to set the tempo | COMP: right plays the stored program, left comes back to your edit | RAND: a new random sound | — |
 
 ![SETUP, page 1](img/setup.png)
 
 ## MIDI
 
-QUADRO takes MIDI over USB, Bluetooth and the TRS jack, on the SETUP channel (OMNI by default).
+QUADRO takes MIDI over USB, Bluetooth and the TRS jack, on the SETUP channel (OMNI by default). SETUP page 3 gives each
+section a channel of its own: a section with one plays only the notes on it (so the lead can play from one keyboard channel
+and the poly from another); the others keep the channel of page 1. Strings and poly in PARA mode ignore the split.
 
 | In | Does |
 | --- | --- |
-| Note on / off | Plays, as the keys do |
+| Note on / off | Plays, as the keys do. Velocity sets each section's level and the bass, poly and lead cutoff (GLO > VELOCITY and VEL FILTER, 0 is off) |
 | Pitch bend | ±2 semitones |
 | CC 1 (mod wheel) | Lead vibrato |
 | CC 64 | Sustain |
-| CC 74 | The current section's filter cutoff |
+| CC 74, 71, 73, 72 | The current section's cutoff, resonance, attack and release (the bass: its envelope and decay) |
+| CC 91, 93, 94 | Reverb, chorus and delay amount |
+| CC 20–23 | The bass, strings, poly and lead levels |
 | Channel pressure | The lead's TOUCH |
 | Program change 0–104 | Programs 1–105 |
 | Clock, start, stop, continue | The sequencer, trill and delay follow it. The header shows the tempo. |

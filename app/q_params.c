@@ -41,6 +41,13 @@ enum {
     QP_KEY, QP_SCALE, QP_TRANSP,                /* the keyboard in a key: the pads snap to the scale; TRANSPOSE shifts it all */
     QP_X_DRIVE, QP_X_BASS, QP_X_TREB, QP_X_CHR, QP_X_CHRATE, QP_X_CHRDEP, QP_X_COMP, QP_X_WIDTH,
     QP_DRIFT,                                   /* ANALOG: the oscillators' pitch drift, as on the original */
+    QP_VL_B, QP_VL_S, QP_VL_P, QP_VL_L,         /* VELOCITY (MIDI in) > level, each section */
+    QP_VF_B, QP_VF_P, QP_VF_L,                  /* VELOCITY (MIDI in) > filter cutoff: bass, poly, lead */
+    QP_MIDI_LOCK,                               /* the scale lock and TRANSPOSE for the keys on MIDI in too */
+    QP_ARP_LATCH,                               /* the sequencer keeps playing after the keys are let go */
+    QP_L_UNI,                                   /* the lead's UNISON: a detuned copy of each oscillator, 0 off */
+    QP_SQT0, QP_SQT1, QP_SQT2, QP_SQT3, QP_SQT4, QP_SQT5, QP_SQT6, QP_SQT7,   /* the step sequencer: each step's - / ACCENT / TIE */
+    QP_SQT8, QP_SQT9, QP_SQT10, QP_SQT11, QP_SQT12, QP_SQT13, QP_SQT14, QP_SQT15,
     QP_N
 };
 #define QD_NAME 12
@@ -69,6 +76,7 @@ static const char *const N_ARP[] = {"OFF", "UP", "UP/DN", "DOWN", "RAND", "STEP"
 static const char *const N_TRIG[] = {"SINGL", "MULTI"};
 static const char *const N_PHMOD[] = {"SWEEP", "S&H", "ENV", "LFO"};
 static const char *const N_DTIME[] = {"1/4", "1/8", "1/16", "1/32", "8T", "16T", "1/8.", "1/16.", "4T", "32T"};
+static const char *const N_TIE[] = {"-", "ACCENT", "TIE"};
 static const char *const N_RSIZE[] = {"ROOM", "PLATE", "HALL", "CATHDRL"};
 static const char *const N_DMODE[] = {"PINGPONG", "STEREO"};
 static const char *const N_KEY[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
@@ -150,7 +158,7 @@ static const q_desc_t QD[QP_N] = {
     [QP_DTIME] = {"TIME", "DELAY TIME", 0, 9, 1, F_ENUM, N_DTIME},
     [QP_L_TOUCH] = {"TOUCH", "TOUCH SENSOR", 0, 2, 1, F_ENUM, N_TOUCH},
     [QP_PARA] = {"PARA", "PARAPHONIC", 0, 1, 0, F_ONOFF, 0},
-    [QP_ARP_OCT] = {"RANGE", "SEQUENCER RANGE", 1, 3, 1, F_INT, 0},
+    [QP_ARP_OCT] = {"RANGE", "SEQUENCER RANGE", 1, 4, 1, F_INT, 0},
     [QP_CHORD] = {"CHORD", "CHORD (ONE KEY)", 0, 23, 0, F_ENUM, N_CHORD},
     [QP_CHBASS] = {"CHBAS", "CHORD BASS (ROOT)", 0, 2, 0, F_ENUM, N_CHBASS},
     [QP_SYNC] = {"SYNC", "SYNC TO MIDI CLOCK", 0, 6, 4, F_ENUM, N_SYNC},
@@ -215,6 +223,32 @@ static const q_desc_t QD[QP_N] = {
     [QP_X_COMP] = {"COMP", "MASTER COMPRESSOR", 0, 127, 0, F_PCT, 0},
     [QP_X_WIDTH] = {"WIDTH", "STEREO WIDTH", 0, 127, 64, F_WID, 0},
     [QP_DRIFT] = {"DRIFT", "ANALOG DRIFT", 0, 127, 40, F_PCT, 0},
+    [QP_VL_B] = {"V>LVL", "BASS VELOCITY > LEVEL", 0, 127, 50, F_PCT, 0},
+    [QP_VL_S] = {"V>LVL", "STRINGS VELOCITY > LEVEL", 0, 127, 50, F_PCT, 0},
+    [QP_VL_P] = {"V>LVL", "POLY VELOCITY > LEVEL", 0, 127, 50, F_PCT, 0},
+    [QP_VL_L] = {"V>LVL", "LEAD VELOCITY > LEVEL", 0, 127, 50, F_PCT, 0},
+    [QP_VF_B] = {"V>VCF", "BASS VELOCITY > CUTOFF", 0, 127, 30, F_PCT, 0},
+    [QP_VF_P] = {"V>VCF", "POLY VELOCITY > CUTOFF", 0, 127, 30, F_PCT, 0},
+    [QP_VF_L] = {"V>VCF", "LEAD VELOCITY > CUTOFF", 0, 127, 30, F_PCT, 0},
+    [QP_MIDI_LOCK] = {"MIDI", "SCALE LOCK ON MIDI IN", 0, 1, 0, F_ONOFF, 0},
+    [QP_ARP_LATCH] = {"LATCH", "SEQUENCER LATCH", 0, 1, 0, F_ONOFF, 0},
+    [QP_L_UNI] = {"UNISON", "LEAD UNISON DETUNE", 0, 127, 0, F_PCT, 0},
+    [QP_SQT0] = {"ACC 1", "SEQUENCER STEP 1 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT1] = {"ACC 2", "SEQUENCER STEP 2 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT2] = {"ACC 3", "SEQUENCER STEP 3 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT3] = {"ACC 4", "SEQUENCER STEP 4 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT4] = {"ACC 5", "SEQUENCER STEP 5 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT5] = {"ACC 6", "SEQUENCER STEP 6 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT6] = {"ACC 7", "SEQUENCER STEP 7 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT7] = {"ACC 8", "SEQUENCER STEP 8 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT8] = {"ACC 9", "SEQUENCER STEP 9 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT9] = {"ACC 10", "SEQUENCER STEP 10 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT10] = {"ACC 11", "SEQUENCER STEP 11 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT11] = {"ACC 12", "SEQUENCER STEP 12 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT12] = {"ACC 13", "SEQUENCER STEP 13 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT13] = {"ACC 14", "SEQUENCER STEP 14 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT14] = {"ACC 15", "SEQUENCER STEP 15 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
+    [QP_SQT15] = {"ACC 16", "SEQUENCER STEP 16 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
     [QP_LFO_W] = {"SHAPE", "LFO WAVEFORM", 0, 4, 0, F_ENUM, N_LFOW},
 };
 
@@ -242,14 +276,14 @@ static const q_page_t PAGES[] = {
     {SEC_BASS, PK_ENV, VZ_ENV_AD, "ENVELOPE", {QP_B_DEC, QP_B_ENV, QP_B_SBVOL, QP_S_REL}},
     {SEC_BASS, PK_LFO, VZ_MOD, "LFO", {QP_B_LFO, QP_LFO, QP_LFO_W, _}},
     {SEC_BASS, PK_SCL, VZ_KEYS, "KEYBOARD", {QP_SPLIT, QP_CHORD, QP_CHBASS, QP_L_OCT}},
-    {SEC_BASS, PK_SCL, VZ_KEYS, "SCALE", {QP_KEY, QP_SCALE, QP_TRANSP, _}},
+    {SEC_BASS, PK_SCL, VZ_KEYS, "SCALE", {QP_KEY, QP_SCALE, QP_TRANSP, QP_MIDI_LOCK}},
     {SEC_STR, PK_EDIT, VZ_VOICES, "VOICES", {QP_S_16, QP_S_8, QP_S_4, QP_PARA}},
     {SEC_STR, PK_EDIT, VZ_WAVE, "OSC", {QP_S_WAVE, QP_S_PW, _, _}},
     {SEC_STR, PK_EDIT, VZ_ENS, "ENSEMBLE", {QP_S_ENS, QP_S_TONE, QP_PH_S, QP_M_S}},
     {SEC_STR, PK_ENV, VZ_ENV_AR, "AR", {QP_S_ATK, QP_S_REL, _, QP_M_S}},
     {SEC_STR, PK_LFO, VZ_ENS, "CHORUS", {QP_S_ENS, QP_S_TONE, QP_LFO, QP_M_S}},
     {SEC_STR, PK_SCL, VZ_KEYS, "KEYBOARD", {QP_SPLIT, QP_CHORD, QP_CHBASS, QP_L_OCT}},
-    {SEC_STR, PK_SCL, VZ_KEYS, "SCALE", {QP_KEY, QP_SCALE, QP_TRANSP, _}},
+    {SEC_STR, PK_SCL, VZ_KEYS, "SCALE", {QP_KEY, QP_SCALE, QP_TRANSP, QP_MIDI_LOCK}},
     {SEC_POLY, PK_EDIT, VZ_VOICES, "VOICES", {QP_P_16, QP_P_8, QP_P_4, QP_PARA}},
     {SEC_POLY, PK_EDIT, VZ_WAVE, "OSC", {QP_P_WAVE, QP_P_PW, QP_P_PWM, QP_P_DET}},
     {SEC_POLY, PK_EDIT, VZ_VCF, "VCF", {QP_P_CUT, QP_P_RES, QP_P_ENV, QP_P_FMODE}},
@@ -257,22 +291,26 @@ static const q_page_t PAGES[] = {
     {SEC_POLY, PK_LFO, VZ_MOD, "LFO", {QP_LFO, QP_LFO_W, QP_P_LFO, QP_P_TREM}},
     {SEC_POLY, PK_LFO, VZ_MOD, "PITCH", {QP_P_VIB, QP_P_KBD, _, _}},
     {SEC_POLY, PK_SCL, VZ_KEYS, "KEYBOARD", {QP_SPLIT, QP_CHORD, QP_CHBASS, QP_L_OCT}},
-    {SEC_POLY, PK_SCL, VZ_KEYS, "SCALE", {QP_KEY, QP_SCALE, QP_TRANSP, _}},
+    {SEC_POLY, PK_SCL, VZ_KEYS, "SCALE", {QP_KEY, QP_SCALE, QP_TRANSP, QP_MIDI_LOCK}},
     {SEC_LEAD, PK_EDIT, VZ_VCO, "VCO", {QP_L_WAVE, QP_L_VCO2, QP_L_INT, QP_L_DET}},
     {SEC_LEAD, PK_EDIT, VZ_VCO, "MIX", {QP_L_W2, QP_L_SYNC, QP_L_SUB, QP_L_NOISE}},
     {SEC_LEAD, PK_EDIT, VZ_VCF, "VCF", {QP_L_CUT, QP_L_RES, QP_L_ENV, QP_L_PWM}},
-    {SEC_LEAD, PK_EDIT, VZ_VCF, "FILTER", {QP_L_FMODE, QP_L_DRIVE, QP_L_KBD, _}},
+    {SEC_LEAD, PK_EDIT, VZ_VCF, "FILTER", {QP_L_FMODE, QP_L_DRIVE, QP_L_KBD, QP_L_UNI}},
     {SEC_LEAD, PK_ENV, VZ_ENV_LEAD, "ADS/ASR", {QP_L_A, QP_L_DEC, QP_L_SLOW, QP_L_R}},
     {SEC_LEAD, PK_LFO, VZ_MOD, "VIBRATO", {QP_L_VIB, QP_L_VDEL, QP_L_TRILL, QP_L_TOUCH}},
     {SEC_LEAD, PK_LFO, VZ_MOD, "LFO", {QP_LFO, QP_LFO_W, _, _}},
     {SEC_LEAD, PK_SCL, VZ_KEYS, "PLAY", {QP_L_2V, QP_L_POR1, QP_L_POR2, QP_L_TRIG}},
-    {SEC_LEAD, PK_SCL, VZ_KEYS, "SCALE", {QP_KEY, QP_SCALE, QP_TRANSP, _}},
+    {SEC_LEAD, PK_SCL, VZ_KEYS, "SCALE", {QP_KEY, QP_SCALE, QP_TRANSP, QP_MIDI_LOCK}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "SEQUENCER", {QP_ARP, QP_TRSPD, QP_SYNC, QP_ARP_OCT}},
-    {SEC_LEAD, PK_SCL, VZ_ARP, "GATE", {QP_SQ_LEN, QP_SQ_GATE, QP_SQ_SW, _}},
+    {SEC_LEAD, PK_SCL, VZ_ARP, "GATE", {QP_SQ_LEN, QP_SQ_GATE, QP_SQ_SW, QP_ARP_LATCH}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "STEPS 1-4", {QP_SQ0, QP_SQ1, QP_SQ2, QP_SQ3}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "STEPS 5-8", {QP_SQ4, QP_SQ5, QP_SQ6, QP_SQ7}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "STEPS 9-12", {QP_SQ8, QP_SQ9, QP_SQ10, QP_SQ11}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "STEPS 13-16", {QP_SQ12, QP_SQ13, QP_SQ14, QP_SQ15}},
+    {SEC_LEAD, PK_SCL, VZ_ARP, "ACCENTS 1-4", {QP_SQT0, QP_SQT1, QP_SQT2, QP_SQT3}},
+    {SEC_LEAD, PK_SCL, VZ_ARP, "ACCENTS 5-8", {QP_SQT4, QP_SQT5, QP_SQT6, QP_SQT7}},
+    {SEC_LEAD, PK_SCL, VZ_ARP, "ACCENTS 9-12", {QP_SQT8, QP_SQT9, QP_SQT10, QP_SQT11}},
+    {SEC_LEAD, PK_SCL, VZ_ARP, "ACCENTS 13-16", {QP_SQT12, QP_SQT13, QP_SQT14, QP_SQT15}},
     {SEC_PHAS, PK_EDIT, VZ_PH_IN, "INPUTS", {QP_PH_B, QP_PH_S, QP_PH_P, QP_PH_L}},
     {SEC_PHAS, PK_EDIT, VZ_PH_SWEEP, "SWEEP", {QP_PH_SPD, QP_PH_DEP, QP_PH_RES, QP_PH_MOD}},
     {SEC_MIX, PK_EDIT, VZ_MIXER, "OUTPUT MIXER", {QP_M_B, QP_M_S, QP_M_P, QP_M_L}},
@@ -280,6 +318,8 @@ static const q_page_t PAGES[] = {
     {SEC_MIX, PK_EDIT, VZ_FX, "REVERB", {QP_REV, QP_REV_DEC, QP_REV_DAMP, QP_REV_SIZE}},
     {SEC_MIX, PK_EDIT, VZ_FX, "ROOM 2", {QP_REV_PRE, QP_DLY_MODE, _, _}},
     {SEC_MIX, PK_EDIT, VZ_FX, "ANALOG", {QP_DRIFT, _, _, _}},
+    {SEC_MIX, PK_EDIT, VZ_FX, "VELOCITY", {QP_VL_B, QP_VL_S, QP_VL_P, QP_VL_L}},
+    {SEC_MIX, PK_EDIT, VZ_FX, "VEL FILTER", {QP_VF_B, _, QP_VF_P, QP_VF_L}},
     {SEC_MIX, PK_EDIT, VZ_FX, "DELAY", {QP_DLY, QP_DTIME, QP_DLY_FB, QP_DLY_TONE}},
     {SEC_MIX, PK_EDIT, VZ_MASTER, "MASTER", {QP_X_DRIVE, QP_X_BASS, QP_X_TREB, QP_X_COMP}},
     {SEC_MIX, PK_EDIT, VZ_MASTER, "CHORUS", {QP_X_CHR, QP_X_CHRATE, QP_X_CHRDEP, QP_X_WIDTH}},

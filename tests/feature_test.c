@@ -24,7 +24,8 @@ static void patch(const int *kv)
     memset(&q, 0, sizeof q);
     q_init();
     q_patch_init(&qp, "T");
-    qp.v[QP_DRIFT] = 0;                         /* (the tests measure exact pitches; drift has its own test below) */
+    qp.v[QP_DRIFT] = 0;                         /* (the tests measure exact pitches and levels: no drift, no velocity) */
+    qp.v[QP_VL_B] = qp.v[QP_VL_S] = qp.v[QP_VL_P] = qp.v[QP_VL_L] = qp.v[QP_VF_B] = qp.v[QP_VF_P] = qp.v[QP_VF_L] = 0;
     qp.v[QP_B_EB16] = 0; qp.v[QP_S_8] = qp.v[QP_S_4] = 0; qp.v[QP_P_8] = 0;
     qp.v[QP_M_B] = strchr(only, 'B') ? 100 : 0, qp.v[QP_M_S] = strchr(only, 'S') ? 100 : 0;
     qp.v[QP_M_P] = strchr(only, 'P') ? 100 : 0, qp.v[QP_M_L] = strchr(only, 'L') ? 100 : 0;
@@ -490,6 +491,62 @@ int main(void)
         patch(k0); render(69); a = hr(440.0, 8);
         patch(k1); render(69); b = hr(440.0, 8);
         check("DRIFT wanders the pitch", b < a * 0.7 && a > 0.05, "8th harmonic: steady %.3f drifting %.3f", a, b, 0);
+    }
+    {   /* the rest of 1.6: a note played the way MIDI in plays it (velocity, the sections it goes to) */
+        double soft, loud, p4, p8;
+        int v127[] = {QP_P_8, 1, QP_P_WAVE, 0, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_M_P, 100, QP_VL_P, 127, -1};
+        int k, i;
+        double rms[3];
+        int vels[3] = {20, 120, 120}, masks[3] = {15, 15, 8};
+        only = "P";
+        for (k = 0; k < 3; k++) {
+            double e = 0;
+            patch(v127);
+            q.nvel[64] = (uint8_t)vels[k];
+            q.cmask = (uint8_t)masks[k];
+            q_key(64, 1);
+            for (i = 0; i < N / Q_BLK; i++) {
+                int32_t o[2 * Q_BLK];
+                int j;
+                memset(o, 0, sizeof o);
+                q_block(o);
+                if (i > N / Q_BLK / 2) for (j = 0; j < Q_BLK; j++) e += (double)o[2 * j] * o[2 * j];
+            }
+            rms[k] = sqrt(e);
+        }
+        soft = rms[0], loud = rms[1];
+        check("VELOCITY > LEVEL", soft < loud * 0.45 && loud > 1e5, "vel 20 %.0f  vel 120 %.0f", soft, loud, 0);
+        p4 = rms[2];
+        check("a lead-only channel leaves the poly silent", p4 < loud * 0.01, "poly on a lead channel %.0f", p4, 0, 0);
+        {   /* LATCH: the keys let go, the sequencer plays on */
+            int la[] = {QP_L_WAVE, 0, QP_ARP, 1, QP_TRSPD, 100, QP_ARP_LATCH, 1, QP_M_L, 100, -1};
+            double e0, e1;
+            only = "L";
+            patch(la); q.cmask = 15; q_key(60, 1); q_key(64, 1);
+            for (i = 0; i < 30; i++) { int32_t o[2 * Q_BLK]; memset(o, 0, sizeof o); q_block(o); }
+            q_key(60, 0); q_key(64, 0);
+            e0 = 0;
+            for (i = 0; i < FS / Q_BLK; i++) { int32_t o[2 * Q_BLK]; int j; memset(o, 0, sizeof o); q_block(o); for (j = 0; j < Q_BLK; j++) e0 += fabs((double)o[2 * j]); }
+            qp.v[QP_ARP_LATCH] = 0;
+            e1 = 0;
+            for (i = 0; i < 40; i++) { int32_t o[2 * Q_BLK]; memset(o, 0, sizeof o); q_block(o); }
+            for (i = 0; i < FS / Q_BLK; i++) { int32_t o[2 * Q_BLK]; int j; memset(o, 0, sizeof o); q_block(o); for (j = 0; j < Q_BLK; j++) e1 += fabs((double)o[2 * j]); }
+            check("LATCH keeps the sequencer playing", e0 > 1e6 && e1 < e0 * 0.05, "latched %.0f, then off %.0f", e0, e1, 0);
+        }
+        {   /* ACCENT: a step half as loud again; UNISON: the copies beat */
+            int ac0[] = {QP_L_WAVE, 5, QP_L_VCO2, 0, QP_ARP, 5, QP_SQ_LEN, 1, QP_SQ0, 0, QP_SQ_GATE, 100, QP_TRSPD, 60, QP_M_L, 100, QP_L_DEC, 127, -1};
+            int ac1[] = {QP_L_WAVE, 5, QP_L_VCO2, 0, QP_ARP, 5, QP_SQ_LEN, 1, QP_SQ0, 0, QP_SQT0, 1, QP_SQ_GATE, 100, QP_TRSPD, 60, QP_M_L, 100, QP_L_DEC, 127, -1};
+            int u0[] = {QP_L_WAVE, 5, QP_L_VCO2, 0, QP_L_UNI, 0, -1}, u1[] = {QP_L_WAVE, 5, QP_L_VCO2, 0, QP_L_UNI, 127, -1};
+            double a, b;
+            only = "L";
+            patch(ac0); render(60); a = amp(261.6, FS, FS);
+            patch(ac1); render(60); b = amp(261.6, FS, FS);
+            check("ACCENT is louder", b > a * 1.3, "plain %.0f  accent %.0f", a, b, 0);
+            patch(u0); render(69); a = beat_depth(FS / 2, N);
+            patch(u1); render(69); b = beat_depth(FS / 2, N);
+            check("UNISON beats", b > a + 0.1, "swing %.2f (off %.2f)", b, a, 0);
+        }
+        (void)p8;
     }
     printf("%s\n", bad ? "QUADRO features: FAIL" : "QUADRO features: all ok");
     return bad != 0;

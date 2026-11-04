@@ -34,7 +34,7 @@ int main(int argc, char **argv)
             case 0x80: q_key((uint8_t)b[1], 0); break;
             case 0xE0: q.bend = ((int32_t)(b[1] | b[2] << 7) - 8192) * 32 / 8192; break;
             case 0xD0: q.touch_tgt = (int32_t)b[1]; break;
-            case 0xC0: q_factory(&qp, b[1] % 68u); break;
+            case 0xC0: q_factory(&qp, b[1] % (uint32_t)(sizeof FACTORY / sizeof FACTORY[0])); break;
             case 0xB0: if (b[1] == 1) q.modw = (int32_t)b[2]; else if (b[1] == 64) q.sustain = b[2] >= 64; break;
             }
             end = et;

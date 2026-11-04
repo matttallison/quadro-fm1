@@ -24,6 +24,10 @@ each knob does as you turn it.
 **Hear it:** [quadro-demo.mp3](app/docs/quadro-demo.mp3), a 2½-minute tour of eight programs. Play
 [quadro-demo.mid](app/docs/quadro-demo.mid) into your FM-1 (USB or Bluetooth MIDI, with MIDI clock) to hear it there.
 
+**Hear the sound design:** [quadro-demo2.mp3](app/docs/quadro-demo2.mp3), a 3½-minute tour of the 1.1–1.3 additions: all four
+sections together, the new bass and lead voices, sync, PWM, filter types, the step sequencer, the arpeggio modes, the new
+chords, noise, touch and the phaser. Its [quadro-demo2.mid](app/docs/quadro-demo2.mid) plays on your FM-1 the same way.
+
 ## Install
 
 **From the browser:** [matttallison.github.io/quadro-fm1](https://matttallison.github.io/quadro-fm1/) has the web

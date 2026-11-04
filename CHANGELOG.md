@@ -5,6 +5,7 @@
 - Six new sequencer modes: PEDAL, THUMB, CONV, DIVRG, PLAYED (the order the keys went down) and SKIP.
 - Thirteen new chords, 23 in all: ADD9, MIN6, MAJ6, DIM, AUG, SUS2, 7SUS, DOM9, MAJ9, MIN11, M7B5, OCT, 4THS, M7#11. Chords can have five notes.
 - 4 new programs (85-88), 88 in all.
+- A second demo song ([quadro-demo2.mp3](app/docs/quadro-demo2.mp3), [.mid](app/docs/quadro-demo2.mid)) touring the new sounds. BP WAH and WIND NOISE are louder.
 
 ## 1.2
 

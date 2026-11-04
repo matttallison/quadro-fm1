@@ -8,6 +8,7 @@
 - HOLD footswitch: MIDI CC 69 locks the lead gate open after the key is released (pitch follows new keys).
 - TRILL WRITE: SETUP > TOOLS, knob 4 turned left; play one key, its distance from the lowest key is the trill interval.
 - Poly keeps to 3 octaves above the bass split, with no overlap.
+- TOUCH > BEND now bends up to one semitone (was two); the MIDI pitch wheel is unchanged at +-2.
 
 ## 1.5
 

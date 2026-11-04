@@ -1083,7 +1083,7 @@ static __attribute__((noinline)) void q_lead(void)
         {
             int32_t vdep = qclamp(P(QP_L_VIB) + q.modw, 0, 127);
             int32_t vib = qm15(q.lfo_v, q.l.vib > (q.modw << 8) ? q.l.vib : q.modw << 8) * vdep / 127 * 16 >> 15;   /* +- 1 semitone */
-            int32_t tr = (q.l.trill_hi ? P(QP_L_TRILL) * 16 : 0) + q.bend - (q.flat ? 16 : 0) + (P(QP_L_TOUCH) == 1 ? (q.touch >> 8) * 32 / 127 : 0);   /* the touch: up to 2 semitones */
+            int32_t tr = (q.l.trill_hi ? P(QP_L_TRILL) * 16 : 0) + q.bend - (q.flat ? 16 : 0) + (P(QP_L_TOUCH) == 1 ? (q.touch >> 8) * 16 / 127 : 0);   /* the touch: up to 1 semitone */
             uint32_t inc1 = q_cents(q_inc(q.l.p1 + vib + tr), q_dct(Q_NV + 2)), inc2 = q_cents(q_inc(q.l.p2 + vib + tr), P(QP_L_DET) + q_dct(Q_NV + 3));
             uint32_t ph1 = q.l.ph1, ph2 = q.l.ph2, subph = q.l.subph, pw;
             int32_t wave = P(QP_L_WAVE), two = P(QP_L_VCO2), eq = e1 >> 9, pm = qm15(eq, P(QP_L_PWM) * 258);

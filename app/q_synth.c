@@ -240,7 +240,7 @@ static struct {
         uint8_t gate, stage, note1, note2;
         int32_t t1, t2, p1, p2, env, g, vib;    /* targets / pitches (1/16 st), Q24 env, gain, vibrato ramp Q15 */
         uint32_t ph1, ph2, trph, arpph, subph, ph1u, ph1d;   /* (ph1u, ph1d: the UNISON copies of VCO 1) */
-        uint8_t arpi, arpup, trill_hi, odd, cut, accent, tie;   /* (STEP: the step is accented; the last step is tied into this one) */
+        uint8_t arpi, arpup, trill_hi, odd, cut, accent, tie, vel;   /* (STEP: the step is accented; the last step is tied into this one) */
         uint32_t stepn, steplen;                /* blocks since the step began, the last step's length in blocks (the gate) */
         int32_t z[4];
     } l;
@@ -903,6 +903,11 @@ static __attribute__((noinline)) void q_lead(void)
             if (hi < 0 || q.held[i] > hi) hi = q.held[i];
         }
     newgate = n > 0;
+    if (n > 0) {                                /* the lead's velocity: the hardest of the lead keys held (the sequencer's notes are not keys) */
+        int32_t k, vm = 0;
+        for (k = 0; k < n; k++) if (q.nvel[notes[k] & 127u] > vm) vm = q.nvel[notes[k] & 127u];
+        q.l.vel = (uint8_t)(vm ? vm : 100);
+    }
     if (P(QP_ARP) && n) {                       /* the sequencer: the lead's keys in order, over 1..3 octaves */
         uint32_t step = Q_LFO_INC[72 + P(QP_TRSPD) * 55 / 127];
         int32_t k, j, sorted[Q_NHELD], mode = P(QP_ARP), len = mode == 5 ? qclamp(P(QP_SQ_LEN), 1, 16) : n * qclamp(P(QP_ARP_OCT), 1, 4), idx, rest = 0, cut = 0, cyc = mode >= 6 && mode != 10 ? len * 2 : len;
@@ -1070,7 +1075,7 @@ static __attribute__((noinline)) void q_lead(void)
         int32_t g1 = qm15(qm15(e1 >> 9, 22000), P(QP_L_TOUCH) == 2 ? 26000 + (q.touch >> 8) * 53 : 32767), g0 = q.l.g, dg;   /* ... and louder */
         if (P(QP_ARP))                          /* the sequencer's short steps: as loud as a held lead */
             g1 = g1 * 2;
-        g1 = qm15(g1, q_vsc(P(QP_VL_L), q.nvel[q.l.note1 & 127u]));
+        g1 = qm15(g1, q_vsc(P(QP_VL_L), q.l.vel ? q.l.vel : 100));
         if (q.l.accent) g1 = g1 * 3 / 2;        /* ACCENT: a step half as loud again */
         if (!g1 && !g0)
             return;
@@ -1087,7 +1092,7 @@ static __attribute__((noinline)) void q_lead(void)
             int32_t sub = P(QP_L_SUB), nz = P(QP_L_NOISE), sync = P(QP_L_SYNC) && two, fm = P(QP_L_FMODE), drv = P(QP_L_DRIVE);
             uint32_t pw2;
             int32_t cut = (P(QP_L_CUT) << 8) + ((eq * P(QP_L_ENV)) >> 7) + ((((q.l.p2 >> 4) - 60) * P(QP_L_KBD) * 13) >> 2) +
-                          (P(QP_L_TOUCH) == 2 ? (q.touch >> 8) * 24 : 0) + q_vcut(P(QP_VF_L), q.nvel[q.l.note1 & 127u]);   /* VOL / BRILL: brighter ... */
+                          (P(QP_L_TOUCH) == 2 ? (q.touch >> 8) * 24 : 0) + q_vcut(P(QP_VF_L), q.l.vel ? q.l.vel : 100);   /* VOL / BRILL: brighter ... */
             q_svf_t f1, f2;
             switch (wave) {                     /* the pulse width: 10 % mode 25 .. 60 %, 50 % mode 60 .. 80 % */
             case 2: pw = 0x1999999Au; break;

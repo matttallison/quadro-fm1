@@ -548,6 +548,18 @@ int main(void)
         }
         (void)p8;
     }
+    {   /* VELOCITY reaches the sequencer: its notes are not keys, the lead takes the velocity of the keys held */
+        int ar[] = {QP_L_WAVE, 5, QP_ARP, 1, QP_ARP_OCT, 2, QP_TRSPD, 80, QP_M_L, 100, QP_VL_L, 127, -1};
+        double e[2];
+        int k, i, vels[2] = {20, 120};
+        only = "L";
+        for (k = 0; k < 2; k++) {
+            patch(ar); q.nvel[60] = (uint8_t)vels[k]; q.cmask = 15; q_key(60, 1);
+            e[k] = 0;
+            for (i = 0; i < 2 * FS / Q_BLK; i++) { int32_t o[2 * Q_BLK]; int j; memset(o, 0, sizeof o); q_block(o); for (j = 0; j < Q_BLK; j++) e[k] += fabs((double)o[2 * j]); }
+        }
+        check("VELOCITY reaches the sequencer", e[0] < e[1] * 0.5, "vel 20 %.0f  vel 120 %.0f", e[0], e[1], 0);
+    }
     printf("%s\n", bad ? "QUADRO features: FAIL" : "QUADRO features: all ok");
     return bad != 0;
 }

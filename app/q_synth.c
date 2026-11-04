@@ -60,8 +60,8 @@ static uint32_t q_inc(int32_t p16)
     f = Q_FRAC16[p16 & 15];
     return b + (b >> 16) * f + (((b & 0xFFFFu) * f) >> 16);
 }
-/* + cents (0..100) */
-static inline uint32_t q_cents(uint32_t inc, int32_t ct) { return inc + (uint32_t)((int32_t)(inc >> 12) * (ct * 2367 / 100)); }
+/* + cents (0..100): 2^(ct/1200) is 1 + ct * 0.000578 here (the error under 2 cents at 100; 1.0 had it ten times too big) */
+static inline uint32_t q_cents(uint32_t inc, int32_t ct) { return inc + (uint32_t)((int32_t)(inc >> 12) * (ct * 2367 / 1000)); }
 
 static inline int32_t q_sin(uint32_t ph)        /* Q15 */
 {
@@ -90,6 +90,35 @@ static inline int32_t q_blep(uint32_t ph, uint32_t inc)
 static inline int32_t q_saw(uint32_t ph, uint32_t inc) { return ((int32_t)(ph >> 16) - 32768) - q_blep(ph, inc); }
 static inline int32_t q_pulse(uint32_t ph, uint32_t inc, uint32_t pw) { return (q_saw(ph, inc) - q_saw(ph + pw, inc)) >> 1; }
 
+/* a pulse width (0..127 -> ~6 .. 50 %) with a modulation added, as a phase */
+static inline uint32_t q_pwid(int32_t p, int32_t mod)
+{
+    int32_t w = (int32_t)(0x10000000u + (uint32_t)p * 14795000u) + mod;
+    return (uint32_t)qclamp(w, 0x08000000, 0x7FFFFFF0);
+}
+/* the oscillator of strings and poly (and the bass): 0 SAW 1 SQR 2 PULSE (width pw) 3 TRI 4 SINE; all at about one
+ * level (+-32768, the sine and the triangle a little under) */
+static inline __attribute__((always_inline)) int32_t q_ow(int32_t wave, uint32_t ph, uint32_t inc, uint32_t pw)
+{
+    switch (wave) {
+    case 1: return q_pulse(ph, inc, 0x80000000u) * 2;
+    case 2: return q_pulse(ph, inc, pw) * 2;
+    case 3: return (int32_t)((ph >> 31 ? ~ph : ph) >> 15) - 32768;
+    case 4: return (q_sin(ph) * 13) >> 4;
+    default: return q_saw(ph, inc);
+    }
+}
+/* the footages 16', 8', 4' of one pitch: the 4' phase ph, and dv, the wraps it has made (the lower ones' top bits) */
+static inline __attribute__((always_inline)) int32_t q_stack(int32_t wave, uint32_t pw, uint32_t ph, uint32_t dv, uint32_t inc8, int32_t f16, int32_t f8,
+                              int32_t f4)
+{
+    int32_t x = 0;
+    if (f4) x += q_ow(wave, ph, inc8 << 1, pw);
+    if (f8) x += q_ow(wave, (ph >> 1) | (dv << 31), inc8, pw);
+    if (f16) x += q_ow(wave, (ph >> 2) | (dv << 30), inc8 >> 1, pw);
+    return x;
+}
+
 static inline int32_t q_tanh(int32_t x)         /* x Q15 (up to 2.0), tanh(x) Q15 */
 {
     int32_t a = x < 0 ? -x : x, i = a >> 8, y;
@@ -98,7 +127,7 @@ static inline int32_t q_tanh(int32_t x)         /* x Q15 (up to 2.0), tanh(x) Q1
 }
 
 /* the trapezoidal state-variable low-pass (A. Simper): coefficients a block, Q13; state within +-150000 */
-typedef struct { int32_t a1, a2, a3; } q_svf_t;
+typedef struct { int32_t a1, a2, a3, k; } q_svf_t;
 static void q_svf_coef(q_svf_t *c, int32_t cut, int32_t res)    /* cut 0..127 << 8, res 0..127 */
 {
     int32_t i, g, den, k = 8192 - res * 7700 / 127;
@@ -111,6 +140,7 @@ static void q_svf_coef(q_svf_t *c, int32_t cut, int32_t res)    /* cut 0..127 <<
     c->a1 = (int32_t)((4096u << 13) / (uint32_t)den);
     c->a2 = (c->a1 * g) >> 12;
     c->a3 = (c->a2 * g) >> 12;
+    c->k = k;
 }
 static inline int32_t q_svf(const q_svf_t *c, int32_t in, int32_t *z)
 {
@@ -120,6 +150,16 @@ static inline int32_t q_svf(const q_svf_t *c, int32_t in, int32_t *z)
     z[0] = qclamp(2 * v1 - z[0], -150000, 150000);
     z[1] = qclamp(2 * v2 - z[1], -150000, 150000);
     return v2;
+}
+/* the same stage's band-pass (mode 2: its peak at one) or high-pass (3): the Simper SVF's other outputs */
+static inline int32_t q_svf_bh(const q_svf_t *c, int32_t in, int32_t *z, int32_t mode)
+{
+    int32_t v3 = in - z[1];
+    int32_t v1 = (c->a1 * z[0] + c->a2 * v3) >> 13;
+    int32_t v2 = z[1] + ((c->a2 * z[0] + c->a3 * v3) >> 13);
+    z[0] = qclamp(2 * v1 - z[0], -150000, 150000);
+    z[1] = qclamp(2 * v2 - z[1], -150000, 150000);
+    return mode == 2 ? (v1 * c->k) >> 12 : in - ((v1 * c->k) >> 12) - v2;
 }
 /* 24 dB: two of them, the resonance on the first, a soft limit after (only the peaks) */
 static inline int32_t q_lp24(const q_svf_t *c1, const q_svf_t *c2, int32_t x, int32_t *z)
@@ -131,6 +171,29 @@ static inline int32_t q_lp24(const q_svf_t *c1, const q_svf_t *c2, int32_t x, in
     }
     return y;
 }
+/* the filter by its TYPE: 0 low-pass 24 dB, 1 low-pass 12, 2 band-pass, 3 high-pass (12 dB, with the resonance) */
+static inline __attribute__((always_inline)) int32_t q_filt(const q_svf_t *c1, const q_svf_t *c2, int32_t x, int32_t *z, int32_t mode)
+{
+    int32_t y, a;
+    if (!mode)
+        return q_lp24(c1, c2, x, z);
+    y = mode == 1 ? q_svf(c1, x, z) : q_svf_bh(c1, x, z, mode);
+    a = y < 0 ? -y : y;
+    if (a > 20000) {
+        a = 20000 + (q_tanh((a - 20000) >> 1) >> 1);
+        y = y < 0 ? -a : a;
+    }
+    return y;
+}
+/* the DRIVE: the signal into a soft clip before the filter (0 none), the level kept about as it was */
+static inline int32_t q_drive(int32_t x, int32_t d)
+{
+    int32_t y;
+    if (!d)
+        return x;
+    y = q_tanh(qclamp((x * (256 + d * 6)) >> 8, -65535, 65535));
+    return (y * (32768 - d * 128)) >> 15;
+}
 static inline uint32_t q_rand(uint32_t *s) { uint32_t x = *s; x ^= x << 13; x ^= x >> 17; x ^= x << 5; return *s = x; }
 
 /* a level knob as a Q15 gain (an audio taper: half way is -12 dB) */
@@ -141,7 +204,10 @@ typedef struct {
     uint8_t note, gate, on, held;               /* held: the key is down (gate may stay up with HOLD) */
     uint8_t root;                               /* the key that started it (CHORD: a key's chord notes share it) */
     uint32_t age;
-    uint32_t ph;                                /* the 4' phase; the 8' is half of it (divide-down: locked) */
+    uint32_t ph;                                /* the 4' phase; the 8' and 16' are it halved and quartered, with the wraps
+                                                 * counted (dv): divide-down, locked */
+    uint32_t pph, ph2;                          /* the poly's own 4' phase while it has vibrato; the unison copy's */
+    uint8_t dv, pdv, dv2;                       /* the wraps of ph, pph, ph2 */
     int32_t se, pe;                             /* strings AR, poly ADSR, Q24 */
     uint8_t ss, ps;                             /* their stages (1 attack, 2 held / decay, 3 release, 0 off) */
     int32_t z[4];                               /* the poly VCF */
@@ -172,11 +238,12 @@ static struct {
     struct {
         uint8_t gate, stage, note1, note2;
         int32_t t1, t2, p1, p2, env, g, vib;    /* targets / pitches (1/16 st), Q24 env, gain, vibrato ramp Q15 */
-        uint32_t ph1, ph2, trph, arpph;
+        uint32_t ph1, ph2, trph, arpph, subph;
         uint8_t arpi, arpup, trill_hi;
         int32_t z[4];
     } l;
-    uint32_t lfo_ph, lfo_tri;                   /* the LFO (sine), the phase shifter's sweep */
+    uint32_t lfo_ph, lfo_tri;                   /* the LFO, the phase shifter's sweep */
+    int32_t lfo_v, lfo_sh;                      /* the LFO's value now (Q15, its SHAPE), the S&H's held value */
     int32_t sh, sh_tgt;                         /* sample and hold */
     uint32_t sh_ph, seed;
     /* the strings' bus and the ensemble */
@@ -246,7 +313,8 @@ static void q_voice_on(uint8_t note, uint8_t root)
         for (i = 0, best = 0xFFFFFFFFu; i < nv; i++)
             if (q.v[i].age < best) { best = q.v[i].age; v = &q.v[i]; }
     if (!v->on) {
-        v->ph = 0;
+        v->ph = v->pph = v->ph2 = 0;
+        v->dv = v->pdv = v->dv2 = 0;
         v->se = v->pe = 0;
         v->z[0] = v->z[1] = v->z[2] = v->z[3] = 0;
         v->sg = v->pg = 0;
@@ -380,6 +448,16 @@ static void q_events(void)
 /* the bass's DECAY knob: ~0.1 s .. ~8 s (127: it holds) */
 #define Q_BDEC(d) (56 + (d) * 70 / 127)
 
+/* the electric bass's other waves (1 SAW, 2 PULSE, 3 TRI, 4 SINE), at about the level of its square (+- 16384) */
+static inline int32_t q_bw(int32_t wave, uint32_t ph, uint32_t inc, uint32_t pw)
+{
+    switch (wave) {
+    case 1: return (q_saw(ph, inc) * 3) >> 2;
+    case 2: return q_pulse(ph, inc, pw);
+    case 3: return (((int32_t)((ph >> 31 ? ~ph : ph) >> 15) - 32768) * 3) >> 2;
+    default: return (q_sin(ph) * 5) >> 3;
+    }
+}
 /* ------------------------------------------------------------------ BASS --- */
 static __attribute__((noinline)) void q_bass(void)
 {
@@ -454,9 +532,12 @@ static __attribute__((noinline)) void q_bass(void)
         uint32_t inc8 = q_cents(q_inc(p16), P(QP_B_TUNE) > 0 ? P(QP_B_TUNE) : 0), inc16 = inc8 >> 1, ph = q.b.ph;
         int32_t eq = e1 >> 9;
         uint32_t pw = 0x80000000u - (uint32_t)eq * 0x8000u;            /* 50 % -> 25 % at the envelope's top */
-        int32_t cut = (P(QP_B_CUT) << 8) + ((eq * P(QP_B_ENV)) >> 8);
+        int32_t cut = (P(QP_B_CUT) << 8) + ((eq * P(QP_B_ENV)) >> 8) + ((((int32_t)q.b.note - 48) * P(QP_B_KBD) * 13) >> 2) +
+                      ((q.lfo_v * P(QP_B_LFO)) >> 9);
         int32_t g0 = q.b.g, dg = (g1 - g0) / Q_BLK, s0 = q.b.sg, ds = (sg1 - s0) / Q_BLK;
         int32_t w16 = P(QP_B_EB16), w8 = P(QP_B_EB8), s16 = P(QP_B_SB16), s8 = P(QP_B_SB8);
+        int32_t bw = P(QP_B_WAVE), fm = P(QP_B_FMODE), drv = P(QP_B_DRIVE);
+        uint32_t bpw = q_pwid(P(QP_B_PW), 0);
         q_svf_t f1, f2;
         if (P(QP_B_TUNE) < 0)                   /* (flat: from the semitone below, sharp) */
             inc8 = q_cents(q_inc(p16 - 16), 100 + P(QP_B_TUNE)), inc16 = inc8 >> 1;
@@ -466,9 +547,14 @@ static __attribute__((noinline)) void q_bass(void)
             uint32_t ph8 = ph << 1;             /* 8' = the 16' phase doubled: one VCO, divided down */
             int32_t sq16 = q_pulse(ph, inc16, 0x80000000u), x = 0;
             if (g0 | g1) {
-                if (w16) x += sq16;
-                if (w8) x += q_pulse(ph8, inc8, pw);
-                q.bbus[i] += qm15(q_lp24(&f1, &f2, x >> 1, q.b.z), g0);
+                if (!bw) {                      /* SQR: 1.0's: a 16' square, an 8' pulse narrowing with the envelope */
+                    if (w16) x += sq16;
+                    if (w8) x += q_pulse(ph8, inc8, pw);
+                } else {                        /* the others, at about the square's level */
+                    if (w16) x += q_bw(bw, ph, inc16, bpw);
+                    if (w8) x += q_bw(bw, ph8, inc8, bpw);
+                }
+                q.bbus[i] += qm15(q_filt(&f1, &f2, q_drive(x >> 1, drv), q.b.z, fm), g0);
             }
             if (s0 | sg1) {
                 int32_t y = 0;
@@ -487,14 +573,77 @@ static __attribute__((noinline)) void q_bass(void)
 }
 
 /* ------------------------------------------------------------------ STRINGS and POLY --- */
+/* what the oscillators of strings and poly do this block: the waves and widths, the footages, the poly's unison
+ * detune and vibrato. The two sections share one set of oscillators while they sound alike (same wave and width,
+ * no vibrato, no detune): the cost the original's one tone generator had. */
+typedef struct {
+    int32_t sw, pwv, s16, s8, s4, p16, p8, p4, det, vib, share, nfs, nfp;
+    uint32_t spw, ppw;
+    int32_t n16, n8, n4, strs, usep;            /* per voice: the footages the shared oscillators must make, and who listens */
+} q_osc_t;
+typedef struct { uint32_t ph, pph, ph2, dv, pdv, dv2; } q_vph_t;
+static void q_osc_setup(q_osc_t *o, int32_t lfo)
+{
+    o->sw = P(QP_S_WAVE), o->pwv = P(QP_P_WAVE);
+    o->s16 = -P(QP_S_16), o->s8 = -P(QP_S_8), o->s4 = -P(QP_S_4);           /* (0 or -1: masks) */
+    o->p16 = -P(QP_P_16), o->p8 = -P(QP_P_8), o->p4 = -P(QP_P_4);
+    o->nfs = -(o->s16 + o->s8 + o->s4), o->nfp = -(o->p16 + o->p8 + o->p4);
+    o->det = P(QP_P_DET);
+    o->vib = (lfo * P(QP_P_VIB)) >> 18;                     /* +- 1 semitone (1/16) at full depth */
+    o->spw = q_pwid(P(QP_S_PW), 0);
+    o->ppw = q_pwid(P(QP_P_PW), (lfo >> 4) * P(QP_P_PWM) * 4096);
+    o->share = o->sw == o->pwv && (o->sw != 2 || o->spw == o->ppw) && !o->vib && !o->det;
+}
+/* a voice's listeners (the strings, the poly), once a block: which footages the shared oscillators make */
+static inline void q_osc_voice(q_osc_t *o, int32_t strs, int32_t usep)
+{
+    o->strs = strs ? -1 : 0, o->usep = usep ? -1 : 0;
+    o->n16 = (o->strs & o->s16) | (o->usep & o->p16);
+    o->n8 = (o->strs & o->s8) | (o->usep & o->p8);
+    o->n4 = (o->strs & o->s4) | (o->usep & o->p4);
+}
+/* one sample of one voice: x the strings' (its footages), y the poly's; the phases move on */
+static inline __attribute__((always_inline)) void q_vosc(const q_osc_t *o, q_vph_t *v, uint32_t inc8, uint32_t pinc8, uint32_t incd, const int32_t W,
+                          int32_t *sx, int32_t *px)
+{
+    int32_t x = 0, y = 0;
+    const int32_t sw = W < 0 ? o->sw : W;     /* (W: the shared wave when it is known at compile time: the switch goes) */
+    uint32_t inc4 = inc8 << 1, t;
+    if (o->share) {
+        int32_t w16 = 0, w8 = 0, w4 = 0;
+        if (o->n16) w16 = q_ow(sw, (v->ph >> 2) | (v->dv << 30), inc8 >> 1, o->spw);
+        if (o->n8) w8 = q_ow(sw, (v->ph >> 1) | (v->dv << 31), inc8, o->spw);
+        if (o->n4) w4 = q_ow(sw, v->ph, inc4, o->spw);
+        x = (w16 & o->s16) + (w8 & o->s8) + (w4 & o->s4);
+        y = (w16 & o->p16) + (w8 & o->p8) + (w4 & o->p4);
+    } else {
+        if (o->strs) x = q_stack(o->sw, o->spw, v->ph, v->dv, inc8, o->s16, o->s8, o->s4);
+        if (o->usep) {
+            y = o->vib ? q_stack(o->pwv, o->ppw, v->pph, v->pdv, pinc8, o->p16, o->p8, o->p4) :
+                         q_stack(o->pwv, o->ppw, v->ph, v->dv, inc8, o->p16, o->p8, o->p4);
+            if (o->det)                                     /* the unison copy: the stack again, a little sharp */
+                y = ((y + q_stack(o->pwv, o->ppw, v->ph2, v->dv2, incd, o->p16, o->p8, o->p4)) * 21845) >> 15;
+        }
+    }
+    if (o->nfs > 2) x = (x * 5) >> 3;                       /* three footages: room for them */
+    if (o->nfp > 2) y = (y * 5) >> 3;
+    *sx = x, *px = y;
+    v->ph += inc4;
+    v->dv += v->ph < inc4;
+    if (o->vib) { t = pinc8 << 1; v->pph += t; v->pdv += v->pph < t; }
+    if (o->det) { t = incd << 1; v->ph2 += t; v->dv2 += v->ph2 < t; }
+}
+
 static __attribute__((noinline)) void q_voices(void)
 {
-    int32_t split = q_split(), hol = P(QP_HOLLOW);
-    int32_t s8 = P(QP_S_8), s4 = P(QP_S_4), p8 = P(QP_P_8), p4 = P(QP_P_4);
-    int32_t sgain = (s8 | s4) ? q_gain(P(QP_M_S) ? 127 : 0) : 0;   /* (the mixer's level comes later) */
-    int32_t pgain = p8 | p4;
-    int32_t lfo = q_sin(q.lfo_ph);
+    int32_t split = q_split();
+    int32_t lfo = q.lfo_v;
+    q_osc_t o;
+    int32_t sgain, pgain;
     int32_t trem = 32767 - qm15((lfo + 32768) >> 1, P(QP_P_TREM) * 200);
+    q_osc_setup(&o, lfo);
+    sgain = (o.s16 | o.s8 | o.s4) ? q_gain(P(QP_M_S) ? 127 : 0) : 0;   /* (the mixer's level comes later) */
+    pgain = o.p16 | o.p8 | o.p4;
     uint32_t n, i, nv = 0, newest = 0;
     int32_t ens_env = 0;
     for (n = 0; n < Q_NV; n++) {
@@ -555,40 +704,40 @@ static __attribute__((noinline)) void q_voices(void)
         if (!sg1 && !v->sg && !pg1 && !v->pg)
             continue;
         {
-            uint32_t inc8 = q_inc((int32_t)v->note * 16 + q.bend), inc4 = inc8 << 1, ph = v->ph;
+            uint32_t inc8 = q_inc((int32_t)v->note * 16 + q.bend);
+            uint32_t pinc8 = o.vib ? q_inc((int32_t)v->note * 16 + q.bend + o.vib) : inc8;
+            uint32_t incd = o.det ? q_cents(pinc8, o.det) : 0;
             int32_t s0 = v->sg, ds = (sg1 - s0) / Q_BLK, g0 = v->pg, dg = (pg1 - g0) / Q_BLK;
             int32_t *sb = q.sbus, *pb = q.pbus;
+            q_vph_t ph = {v->ph, v->pph, v->ph2, v->dv, v->pdv, v->dv2};
+            q_osc_t oc = o;                     /* (a copy of the block's settings the stores below cannot alias) */
             q_svf_t f1, f2;
-            int32_t usep = pg1 | g0;
+            int32_t usep = pg1 | g0, strs = sg1 | s0, fm = P(QP_P_FMODE);
             if (usep) {                         /* VCF: cutoff, the ADSR, key tracking (half: 2 V/oct), the LFO */
                 int32_t cut = (P(QP_P_CUT) << 8) + (((pe1 >> 9) * P(QP_P_ENV)) >> 7) +
                               ((((int32_t)v->note - 60) * P(QP_P_KBD) * 13) >> 2) + ((lfo * P(QP_P_LFO)) >> 10);
                 q_svf_coef(&f1, cut, P(QP_P_RES));
                 q_svf_coef(&f2, cut, 0);
             }
-            for (i = 0; i < Q_BLK; i++) {
-                uint32_t ph8 = ph >> 1;         /* (the 4' phase halved: the 8', locked) */
-                int32_t a = 0, b = 0, x;
-                if (hol) {
-                    if (s8 | p8) a = q_pulse(ph8, inc8, 0x80000000u) * 2;
-                    if (s4 | p4) b = q_pulse(ph, inc4, 0x80000000u) * 2;
-                } else {
-                    if (s8 | p8) a = q_saw(ph8 + 0x80000000u, inc8);
-                    if (s4 | p4) b = q_saw(ph, inc4);
-                }
-                ph += inc4;
-                if (s0 | sg1) {
-                    x = (s8 ? a : 0) + (s4 ? b : 0);
-                    sb[i] += qm15(x, s0);
-                }
-                if (usep) {
-                    x = (p8 ? a : 0) + (p4 ? b : 0);
-                    pb[i] += qm15(q_lp24(&f1, &f2, x >> 1, v->z), g0);
-                }
-                s0 += ds;
-                g0 += dg;
-            }
-            v->ph = ph;
+            q_osc_voice(&oc, strs, usep);
+            if (!o.vib) ph.pph = ph.ph, ph.pdv = ph.dv;
+#define Q_VLOOP(W)                                                                                                   \
+    for (i = 0; i < Q_BLK; i++) {                                                                                    \
+        int32_t x, y;                                                                                                \
+        q_vosc(&oc, &ph, inc8, pinc8, incd, W, &x, &y);                                                              \
+        if (strs)                                                                                                    \
+            sb[i] += qm15(x, s0);                                                                                    \
+        if (usep)                                                                                                    \
+            pb[i] += qm15(q_filt(&f1, &f2, y >> 1, v->z, fm), g0);                                                   \
+        s0 += ds;                                                                                                    \
+        g0 += dg;                                                                                                    \
+    }
+            if (oc.share && oc.sw == 0) { Q_VLOOP(0) }       /* the common waves: the switch gone from the loop */
+            else if (oc.share && oc.sw == 1) { Q_VLOOP(1) }
+            else { Q_VLOOP(-1) }
+#undef Q_VLOOP
+            v->ph = ph.ph, v->pph = ph.pph, v->ph2 = ph.ph2;
+            v->dv = (uint8_t)ph.dv, v->pdv = (uint8_t)ph.pdv, v->dv2 = (uint8_t)ph.dv2;
             v->sg = sg1;
             v->pg = pg1;
         }
@@ -604,9 +753,10 @@ static __attribute__((noinline)) void q_voices(void)
 static __attribute__((noinline)) void q_voices_para(void)
 {
     static int32_t sraw[Q_BLK], praw[Q_BLK];
-    int32_t split = q_split(), hol = P(QP_HOLLOW);
-    int32_t s8 = P(QP_S_8), s4 = P(QP_S_4), p8 = P(QP_P_8), p4 = P(QP_P_4), top = -1;
-    int32_t lfo = q_sin(q.lfo_ph), trem = 32767 - qm15((lfo + 32768) >> 1, P(QP_P_TREM) * 200);
+    int32_t split = q_split(), top = -1;
+    int32_t lfo = q.lfo_v, trem = 32767 - qm15((lfo + 32768) >> 1, P(QP_P_TREM) * 200);
+    q_osc_t o;
+    q_osc_setup(&o, lfo);
     int32_t se0 = q.pse, pe0 = q.ppe, se1 = se0, pe1 = pe0, anyg = 0, newkey = 0;
     uint32_t n, i, nv = 0, ss = q.pss, ps = q.pps, maxage = q.para_age;
     for (n = 0; n < Q_NV; n++) {
@@ -648,36 +798,40 @@ static __attribute__((noinline)) void q_voices_para(void)
         k1 = k1 >= k0 ? k1 : qclamp(k0 - 4096, 0, 32767);         /* in at once, out over ~8 blocks (6 ms) */
         dk = (k1 - k0) / Q_BLK;
         {
-            uint32_t inc8 = q_inc((int32_t)v->note * 16 + q.bend), inc4 = inc8 << 1, ph = v->ph;
-            int32_t poly = (p8 | p4) && v->note >= split, str = s8 | s4;
-            for (i = 0; i < Q_BLK; i++) {
-                uint32_t ph8 = ph >> 1;
-                int32_t a = 0, b = 0;
-                if (hol) {
-                    if (s8 | p8) a = q_pulse(ph8, inc8, 0x80000000u) * 2;
-                    if (s4 | p4) b = q_pulse(ph, inc4, 0x80000000u) * 2;
-                } else {
-                    if (s8 | p8) a = q_saw(ph8 + 0x80000000u, inc8);
-                    if (s4 | p4) b = q_saw(ph, inc4);
-                }
-                ph += inc4;
-                if (str) sraw[i] += qm15((s8 ? a : 0) + (s4 ? b : 0), k0);
-                if (poly) praw[i] += qm15((p8 ? a : 0) + (p4 ? b : 0), k0);
-                k0 += dk;
-            }
-            v->ph = ph;
+            uint32_t inc8 = q_inc((int32_t)v->note * 16 + q.bend);
+            uint32_t pinc8 = o.vib ? q_inc((int32_t)v->note * 16 + q.bend + o.vib) : inc8;
+            uint32_t incd = o.det ? q_cents(pinc8, o.det) : 0;
+            int32_t poly = (o.p16 | o.p8 | o.p4) && v->note >= split, str = o.s16 | o.s8 | o.s4;
+            q_vph_t ph = {v->ph, v->pph, v->ph2, v->dv, v->pdv, v->dv2};
+            q_osc_t oc = o;
+            q_osc_voice(&oc, str, poly);
+            if (!o.vib) ph.pph = ph.ph, ph.pdv = ph.dv;
+#define Q_VLOOP(W)                                                                                                   \
+    for (i = 0; i < Q_BLK; i++) {                                                                                    \
+        int32_t x, y;                                                                                                \
+        q_vosc(&oc, &ph, inc8, pinc8, incd, W, &x, &y);                                                              \
+        if (str) sraw[i] += qm15(x, k0);                                                                             \
+        if (poly) praw[i] += qm15(y, k0);                                                                            \
+        k0 += dk;                                                                                                    \
+    }
+            if (oc.share && oc.sw == 0) { Q_VLOOP(0) }
+            else if (oc.share && oc.sw == 1) { Q_VLOOP(1) }
+            else { Q_VLOOP(-1) }
+#undef Q_VLOOP
+            v->ph = ph.ph, v->pph = ph.pph, v->ph2 = ph.ph2;
+            v->dv = (uint8_t)ph.dv, v->pdv = (uint8_t)ph.pdv, v->dv2 = (uint8_t)ph.dv2;
         }
         v->sg = k1;
     }
     q_mon.voices = (uint8_t)nv;
     {   /* the strings: one AR over the bus */
-        int32_t g1 = (s8 | s4) ? qm15(se1 >> 9, 6000) : 0, g0 = q.psg, dg = (g1 - g0) / Q_BLK;
+        int32_t g1 = (o.s16 | o.s8 | o.s4) ? qm15(se1 >> 9, 6000) : 0, g0 = q.psg, dg = (g1 - g0) / Q_BLK;
         if (g0 | g1)
             for (i = 0; i < Q_BLK; i++) { q.sbus[i] += qm15(sraw[i], g0); g0 += dg; }
         q.psg = g1;
     }
     {   /* the poly: one VCF (tracking the top key), one VCA */
-        int32_t g1 = (p8 | p4) ? qm15(qm15(pe1 >> 9, 30000), trem) : 0, g0 = q.ppg, dg = (g1 - g0) / Q_BLK;
+        int32_t g1 = (o.p16 | o.p8 | o.p4) ? qm15(qm15(pe1 >> 9, 30000), trem) : 0, g0 = q.ppg, dg = (g1 - g0) / Q_BLK;
         if (g0 | g1) {
             q_svf_t f1, f2;
             int32_t cut = (P(QP_P_CUT) << 8) + (((pe1 >> 9) * P(QP_P_ENV)) >> 7) +
@@ -685,7 +839,7 @@ static __attribute__((noinline)) void q_voices_para(void)
             q_svf_coef(&f1, cut, P(QP_P_RES));
             q_svf_coef(&f2, cut, 0);
             for (i = 0; i < Q_BLK; i++) {
-                q.pbus[i] += qm15(q_lp24(&f1, &f2, qclamp(praw[i] >> 3, -60000, 60000), q.pz), g0);
+                q.pbus[i] += qm15(q_filt(&f1, &f2, qclamp(praw[i] >> 3, -60000, 60000), q.pz, P(QP_P_FMODE)), g0);
                 g0 += dg;
             }
         }
@@ -693,6 +847,14 @@ static __attribute__((noinline)) void q_voices_para(void)
     }
 }
 
+/* the lead's oscillator by WAVE: 0 SAW, 1..4 the pulses (width pw), 5 TRI, 6 SINE */
+static inline int32_t q_lw(int32_t wave, uint32_t ph, uint32_t inc, uint32_t pw)
+{
+    if (!wave) return q_saw(ph, inc);
+    if (wave < 5) return q_pulse(ph, inc, pw);
+    if (wave == 5) return (int32_t)((ph >> 31 ? ~ph : ph) >> 15) - 32768;
+    return (q_sin(ph) * 13) >> 4;
+}
 /* ------------------------------------------------------------------ LEAD --- */
 static __attribute__((noinline)) void q_lead(void)
 {
@@ -835,12 +997,16 @@ static __attribute__((noinline)) void q_lead(void)
         dg = (g1 - g0) / Q_BLK;
         {
             int32_t vdep = qclamp(P(QP_L_VIB) + q.modw, 0, 127);
-            int32_t vib = qm15(q_sin(q.lfo_ph), q.l.vib > (q.modw << 8) ? q.l.vib : q.modw << 8) * vdep / 127 * 16 >> 15;   /* +- 1 semitone */
+            int32_t vib = qm15(q.lfo_v, q.l.vib > (q.modw << 8) ? q.l.vib : q.modw << 8) * vdep / 127 * 16 >> 15;   /* +- 1 semitone */
             int32_t tr = (q.l.trill_hi ? P(QP_L_TRILL) * 16 : 0) + q.bend + (P(QP_L_TOUCH) == 1 ? (q.touch >> 8) * 32 / 127 : 0);   /* the touch: up to 2 semitones */
             uint32_t inc1 = q_inc(q.l.p1 + vib + tr), inc2 = q_cents(q_inc(q.l.p2 + vib + tr), P(QP_L_DET));
-            uint32_t ph1 = q.l.ph1, ph2 = q.l.ph2, pw;
+            uint32_t ph1 = q.l.ph1, ph2 = q.l.ph2, subph = q.l.subph, pw;
             int32_t wave = P(QP_L_WAVE), two = P(QP_L_VCO2), eq = e1 >> 9, pm = qm15(eq, P(QP_L_PWM) * 258);
-            int32_t cut = (P(QP_L_CUT) << 8) + ((eq * P(QP_L_ENV)) >> 7) + (((q.l.p2 >> 4) - 60) * 26 * 4) +
+            static const int8_t LW2[5] = {0, 0, 1, 5, 6};               /* WAVE2 > the lead's wave codes (SAW SQR TRI SINE) */
+            int32_t w2 = P(QP_L_W2) ? LW2[P(QP_L_W2)] : wave;           /* VCO 2's wave: as VCO 1's, or its own */
+            int32_t sub = P(QP_L_SUB), nz = P(QP_L_NOISE), sync = P(QP_L_SYNC) && two, fm = P(QP_L_FMODE), drv = P(QP_L_DRIVE);
+            uint32_t pw2;
+            int32_t cut = (P(QP_L_CUT) << 8) + ((eq * P(QP_L_ENV)) >> 7) + ((((q.l.p2 >> 4) - 60) * P(QP_L_KBD) * 13) >> 2) +
                           (P(QP_L_TOUCH) == 2 ? (q.touch >> 8) * 24 : 0);   /* VOL / BRILL: brighter ... */
             q_svf_t f1, f2;
             switch (wave) {                     /* the pulse width: 10 % mode 25 .. 60 %, 50 % mode 60 .. 80 % */
@@ -849,18 +1015,26 @@ static __attribute__((noinline)) void q_lead(void)
             case 4: pw = 0x9999999Au + (uint32_t)pm * 0x1999u; break;
             default: pw = 0x80000000u; break;
             }
+            pw2 = P(QP_L_W2) ? 0x80000000u : pw;                         /* (VCO 2 as a square of its own: 50 %) */
             q_svf_coef(&f1, cut, P(QP_L_RES));
             q_svf_coef(&f2, cut, 0);
             for (i = 0; i < Q_BLK; i++) {
-                int32_t x = wave ? q_pulse(ph1, inc1, pw) : q_saw(ph1, inc1);
+                int32_t x = q_lw(wave, ph1, inc1, pw);
                 if (two)
-                    x = (x + (wave ? q_pulse(ph2, inc2, pw) : q_saw(ph2, inc2))) >> 1;
+                    x = (x + q_lw(w2, ph2, inc2, pw2)) >> 1;
+                if (sub)                        /* the sub oscillator: a square an octave under VCO 1 */
+                    x += (q_pulse(subph, inc1 >> 1, 0x80000000u) * sub) >> 7;
+                if (nz)                         /* the noise */
+                    x += (((int32_t)(q_rand(&q.seed) >> 16) - 32768) * nz) >> 8;
                 ph1 += inc1;
                 ph2 += inc2;
-                q.lbus[i] += qm15(q_lp24(&f1, &f2, x >> 1, q.l.z), g0);
+                subph += inc1 >> 1;
+                if (sync && ph1 < inc1)         /* hard sync: VCO 1 restarts VCO 2 */
+                    ph2 = 0;
+                q.lbus[i] += qm15(q_filt(&f1, &f2, q_drive(x >> 1, drv), q.l.z, fm), g0);
                 g0 += dg;
             }
-            q.l.ph1 = ph1, q.l.ph2 = ph2;
+            q.l.ph1 = ph1, q.l.ph2 = ph2, q.l.subph = subph;
         }
         q.l.g = g1;
     }
@@ -896,7 +1070,11 @@ static __attribute__((noinline)) void q_ensemble(int32_t *l, int32_t *r)
         int32_t s = q.sbus[i], t[3];
         q.tone_hp += s - (q.tone_hp >> 8);      /* ~30 Hz high-pass (its state Q8: no DC left behind) */
         s -= q.tone_hp >> 8;
-        q.tone_lp += qm15(s - q.tone_lp, tone);
+        s = qclamp(s, -262144, 262143);          /* (a stack of voices at full level: the filter's multiply must not overflow) */
+        {   /* (s - tone_lp) * tone >> 15, split so the multiply cannot overflow and the rounding is the plain one */
+            int32_t d = s - q.tone_lp;
+            q.tone_lp += (((d >> 8) * tone) >> 7) + (((d & 255) * tone) >> 15);
+        }
         s = q.tone_lp;
         q.dl[q.dw & 1023u] = (int16_t)qclamp(s >> 2, -32767, 32767);   /* (>> 2: room for 8 stacked keys) */
         for (k = 0; k < 3; k++) {
@@ -931,7 +1109,7 @@ static __attribute__((noinline)) void q_phaser(const int32_t *in, int32_t *l, in
         pos = q.ph_env;
         break;
     case 3:                                     /* LFO */
-        pos = (q_sin(q.lfo_ph) + 32768) >> 1;
+        pos = (q.lfo_v + 32768) >> 1;
         break;
     default:                                    /* SWEEP: its own triangle */
         q.lfo_tri += spd;
@@ -1014,7 +1192,20 @@ static void q_block(int32_t *out)
         qf_bpm10 = (uint16_t)qclamp((int32_t)((uint32_t)Q_FS * 600u / 24u * 256u / q.clk_span), 300, 3000);
     q_mon.bpm10 = q.clk_run ? qf_bpm10 : 0;
     q.touch += (q.touch_tgt * 256 - q.touch) >> 4;   /* the touch, smoothed (Q8, ~20 ms) */
-    q.lfo_ph += Q_LFO_INC[38 + P(QP_LFO) * 82 / 127];
+    {   /* the LFO: its phase on, and its value by SHAPE (every section reads q.lfo_v) */
+        uint32_t lp = q.lfo_ph, ln = lp + Q_LFO_INC[38 + P(QP_LFO) * 82 / 127];
+        switch (P(QP_LFO_W)) {
+        case 1: q.lfo_v = (int32_t)((ln >> 31 ? ~ln : ln) >> 15) - 32768; break;
+        case 2: q.lfo_v = (int32_t)(ln >> 16) - 32768; break;
+        case 3: q.lfo_v = ln >> 31 ? -32767 : 32767; break;
+        case 4:
+            if (ln < lp) q.lfo_sh = (int32_t)(q_rand(&q.seed) >> 16) - 32768;       /* a new value at each cycle */
+            q.lfo_v = q.lfo_sh;
+            break;
+        default: q.lfo_v = q_sin(ln); break;
+        }
+        q.lfo_ph = ln;
+    }
     q_mon.lfo = (uint8_t)(q.lfo_ph >> 24);
     for (i = 0; i < Q_BLK; i++)
         q.sbus[i] = q.pbus[i] = q.bbus[i] = q.lbus[i] = q.sbbus[i] = 0;

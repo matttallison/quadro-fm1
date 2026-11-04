@@ -7,7 +7,7 @@ enum {
     QP_B_EB16, QP_B_EB8, QP_B_SB16, QP_B_SB8, QP_B_OCT, QP_B_TUNE, QP_B_CUT, QP_B_RES, QP_B_ENV, QP_B_DEC, QP_B_SBVOL,
     /* STRINGS */
     QP_S_8, QP_S_4, QP_S_ATK, QP_S_REL, QP_S_ENS, QP_S_TONE,
-    QP_HOLLOW,                                  /* square for STRINGS and POLY (their tone generator is one) */
+    QP_HOLLOW,                                  /* (1.0's square for STRINGS and POLY: now their WAVE; a program that has it set gets SQR) */
     /* POLY SYNTH */
     QP_P_8, QP_P_4, QP_P_CUT, QP_P_RES, QP_P_ENV, QP_P_KBD, QP_P_LFO, QP_P_TREM, QP_P_A, QP_P_D, QP_P_S, QP_P_R,
     /* LEAD SYNTH */
@@ -25,6 +25,12 @@ enum {
     QP_CHORD,                                   /* CHORD: one key, a chord on the strings and poly */
     QP_CHBASS,                                  /* CH BASS: the bass plays the root, 1 or 2 octaves down, no split */
     QP_SYNC,                                    /* the sequencer and the trill on the MIDI clock: a note value */
+    /* 1.1: the oscillators, the filters, the LFO (appended: a saved program keeps its parameters' places) */
+    QP_B_WAVE, QP_B_PW, QP_B_FMODE, QP_B_KBD, QP_B_LFO, QP_B_DRIVE,
+    QP_S_WAVE, QP_S_PW, QP_S_16,
+    QP_P_WAVE, QP_P_PW, QP_P_PWM, QP_P_DET, QP_P_VIB, QP_P_FMODE, QP_P_16,
+    QP_L_W2, QP_L_SUB, QP_L_NOISE, QP_L_SYNC, QP_L_FMODE, QP_L_DRIVE, QP_L_KBD,
+    QP_LFO_W,
     QP_N
 };
 #define QD_NAME 12
@@ -43,7 +49,12 @@ typedef struct {
     const char *const *names;                   /* F_ENUM */
 } q_desc_t;
 
-static const char *const N_LWAVE[] = {"SAW", "SQR", "10%", "PWM10", "PWM50"};
+static const char *const N_LWAVE[] = {"SAW", "SQR", "10%", "PWM10", "PWM50", "TRI", "SINE"};
+static const char *const N_LW2[] = {"=VCO1", "SAW", "SQR", "TRI", "SINE"};
+static const char *const N_WAVE[] = {"SAW", "SQR", "PULSE", "TRI", "SINE"};
+static const char *const N_BWAVE[] = {"SQR", "SAW", "PULSE", "TRI", "SINE"};   /* (SQR first: the bass of 1.0) */
+static const char *const N_FMODE[] = {"LP24", "LP12", "BP", "HP"};
+static const char *const N_LFOW[] = {"SINE", "TRI", "SAW", "SQR", "S&H"};
 static const char *const N_ARP[] = {"OFF", "UP", "UP/DN", "DOWN", "RAND"};
 static const char *const N_TRIG[] = {"SINGL", "MULTI"};
 static const char *const N_PHMOD[] = {"SWEEP", "S&H", "ENV", "LFO"};
@@ -71,7 +82,7 @@ static const q_desc_t QD[QP_N] = {
     [QP_S_REL] = {"REL", "STRINGS RELEASE", 0, 127, 80, F_TIME, 0},
     [QP_S_ENS] = {"ENS", "ENSEMBLE DEPTH", 0, 127, 90, F_PCT, 0},
     [QP_S_TONE] = {"TONE", "STRINGS TONE", 0, 127, 80, F_PCT, 0},
-    [QP_HOLLOW] = {"HOLLW", "HOLLOW WAVEFORM", 0, 1, 0, F_ONOFF, 0},
+    [QP_HOLLOW] = {"HOLLW", "HOLLOW (OLD)", 0, 1, 0, F_ONOFF, 0},
     [QP_P_8] = {"8'", "POLY 8'", 0, 1, 1, F_ONOFF, 0},
     [QP_P_4] = {"4'", "POLY 4'", 0, 1, 0, F_ONOFF, 0},
     [QP_P_CUT] = {"CUT", "POLY VCF CUTOFF", 0, 127, 50, F_HZ, 0},
@@ -84,7 +95,7 @@ static const q_desc_t QD[QP_N] = {
     [QP_P_D] = {"DEC", "POLY DECAY", 0, 127, 70, F_TIME, 0},
     [QP_P_S] = {"SUS", "POLY SUSTAIN", 0, 127, 90, F_PCT, 0},
     [QP_P_R] = {"REL", "POLY RELEASE", 0, 127, 60, F_TIME, 0},
-    [QP_L_WAVE] = {"WAVE", "LEAD WAVEFORM", 0, 4, 0, F_ENUM, N_LWAVE},
+    [QP_L_WAVE] = {"WAVE", "LEAD WAVEFORM", 0, 6, 0, F_ENUM, N_LWAVE},
     [QP_L_VCO2] = {"VCO2", "LEAD VCO 2", 0, 1, 1, F_ONOFF, 0},
     [QP_L_INT] = {"INT", "VCO 2 INTERVAL", -24, 24, 0, F_SEMI, 0},
     [QP_L_DET] = {"DET", "VCO 2 DETUNE", 0, 50, 8, F_CENT, 0},
@@ -129,6 +140,30 @@ static const q_desc_t QD[QP_N] = {
     [QP_CHORD] = {"CHORD", "CHORD (ONE KEY)", 0, 9, 0, F_ENUM, N_CHORD},
     [QP_CHBASS] = {"CHBAS", "CHORD BASS (ROOT)", 0, 2, 0, F_ENUM, N_CHBASS},
     [QP_SYNC] = {"SYNC", "SYNC TO MIDI CLOCK", 0, 6, 4, F_ENUM, N_SYNC},
+    [QP_B_WAVE] = {"WAVE", "BASS WAVEFORM", 0, 4, 0, F_ENUM, N_BWAVE},
+    [QP_B_PW] = {"PW", "BASS PULSE WIDTH", 0, 127, 64, F_PCT, 0},
+    [QP_B_FMODE] = {"TYPE", "BASS FILTER TYPE", 0, 3, 0, F_ENUM, N_FMODE},
+    [QP_B_KBD] = {"KBD", "BASS KEY TRACK", 0, 127, 0, F_PCT, 0},
+    [QP_B_LFO] = {"LFO", "BASS LFO > VCF", 0, 127, 0, F_PCT, 0},
+    [QP_B_DRIVE] = {"DRIVE", "BASS FILTER DRIVE", 0, 127, 0, F_PCT, 0},
+    [QP_S_WAVE] = {"WAVE", "STRINGS WAVEFORM", 0, 4, 0, F_ENUM, N_WAVE},
+    [QP_S_PW] = {"PW", "STRINGS PULSE WIDTH", 0, 127, 64, F_PCT, 0},
+    [QP_S_16] = {"16'", "STRINGS 16' CELLO", 0, 1, 0, F_ONOFF, 0},
+    [QP_P_WAVE] = {"WAVE", "POLY WAVEFORM", 0, 4, 0, F_ENUM, N_WAVE},
+    [QP_P_PW] = {"PW", "POLY PULSE WIDTH", 0, 127, 64, F_PCT, 0},
+    [QP_P_PWM] = {"PWM", "POLY LFO > PULSE WIDTH", 0, 127, 0, F_PCT, 0},
+    [QP_P_DET] = {"DET", "POLY UNISON DETUNE", 0, 50, 0, F_CENT, 0},
+    [QP_P_VIB] = {"VIB", "POLY LFO > PITCH", 0, 127, 0, F_PCT, 0},
+    [QP_P_FMODE] = {"TYPE", "POLY FILTER TYPE", 0, 3, 0, F_ENUM, N_FMODE},
+    [QP_P_16] = {"16'", "POLY 16' SUB", 0, 1, 0, F_ONOFF, 0},
+    [QP_L_W2] = {"WAVE2", "VCO 2 WAVEFORM", 0, 4, 0, F_ENUM, N_LW2},
+    [QP_L_SUB] = {"SUB", "SUB OSCILLATOR", 0, 127, 0, F_PCT, 0},
+    [QP_L_NOISE] = {"NOISE", "NOISE LEVEL", 0, 127, 0, F_PCT, 0},
+    [QP_L_SYNC] = {"SYNC", "VCO 2 HARD SYNC", 0, 1, 0, F_ONOFF, 0},
+    [QP_L_FMODE] = {"TYPE", "LEAD FILTER TYPE", 0, 3, 0, F_ENUM, N_FMODE},
+    [QP_L_DRIVE] = {"DRIVE", "LEAD FILTER DRIVE", 0, 127, 0, F_PCT, 0},
+    [QP_L_KBD] = {"KBD", "LEAD KEY TRACK", 0, 127, 32, F_PCT, 0},
+    [QP_LFO_W] = {"SHAPE", "LFO WAVEFORM", 0, 4, 0, F_ENUM, N_LFOW},
 };
 
 /* sections: the four of the original and the phase shifter / mixer */
@@ -139,7 +174,7 @@ static const char *const SEC_SHORT[SEC_N] = {"BASS", "STRG", "POLY", "LEAD", "PH
 /* the page kinds: which button opens them (EDIT the sound, ENV the envelope, LFO the modulation, SCL the keys) and
  * what the screen draws over the knobs */
 enum { VZ_VOICES, VZ_VCF, VZ_ENV_AD, VZ_ENV_AR, VZ_ENV_ADSR, VZ_ENV_LEAD, VZ_VCO, VZ_MOD, VZ_KEYS, VZ_ARP, VZ_PH_IN,
-       VZ_PH_SWEEP, VZ_MIXER, VZ_FX, VZ_TUNE, VZ_ENS };
+       VZ_PH_SWEEP, VZ_MIXER, VZ_FX, VZ_TUNE, VZ_ENS, VZ_WAVE };
 enum { PK_EDIT, PK_ENV, PK_LFO, PK_SCL };
 typedef struct {
     uint8_t sec, kind, vz;
@@ -149,24 +184,32 @@ typedef struct {
 #define _ QP_N
 static const q_page_t PAGES[] = {
     {SEC_BASS, PK_EDIT, VZ_VOICES, "VOICES", {QP_B_EB16, QP_B_EB8, QP_B_SB16, QP_B_SB8}},
+    {SEC_BASS, PK_EDIT, VZ_WAVE, "OSC", {QP_B_WAVE, QP_B_PW, QP_B_TUNE, QP_B_OCT}},
     {SEC_BASS, PK_EDIT, VZ_VCF, "VCF", {QP_B_CUT, QP_B_RES, QP_B_ENV, QP_B_DEC}},
+    {SEC_BASS, PK_EDIT, VZ_VCF, "FILTER", {QP_B_FMODE, QP_B_DRIVE, QP_B_KBD, _}},
     {SEC_BASS, PK_ENV, VZ_ENV_AD, "ENVELOPE", {QP_B_DEC, QP_B_ENV, QP_B_SBVOL, QP_S_REL}},
-    {SEC_BASS, PK_LFO, VZ_TUNE, "TUNE", {QP_B_TUNE, QP_B_OCT, QP_B_SBVOL, QP_M_B}},
+    {SEC_BASS, PK_LFO, VZ_MOD, "LFO", {QP_B_LFO, QP_LFO, QP_LFO_W, _}},
     {SEC_BASS, PK_SCL, VZ_KEYS, "KEYBOARD", {QP_SPLIT, QP_CHORD, QP_CHBASS, QP_L_OCT}},
-    {SEC_STR, PK_EDIT, VZ_VOICES, "VOICES", {QP_S_8, QP_S_4, QP_HOLLOW, QP_PARA}},
+    {SEC_STR, PK_EDIT, VZ_VOICES, "VOICES", {QP_S_16, QP_S_8, QP_S_4, QP_PARA}},
+    {SEC_STR, PK_EDIT, VZ_WAVE, "OSC", {QP_S_WAVE, QP_S_PW, _, _}},
     {SEC_STR, PK_EDIT, VZ_ENS, "ENSEMBLE", {QP_S_ENS, QP_S_TONE, QP_PH_S, QP_M_S}},
     {SEC_STR, PK_ENV, VZ_ENV_AR, "AR", {QP_S_ATK, QP_S_REL, _, QP_M_S}},
     {SEC_STR, PK_LFO, VZ_ENS, "CHORUS", {QP_S_ENS, QP_S_TONE, QP_LFO, QP_M_S}},
     {SEC_STR, PK_SCL, VZ_KEYS, "KEYBOARD", {QP_SPLIT, QP_CHORD, QP_CHBASS, QP_L_OCT}},
-    {SEC_POLY, PK_EDIT, VZ_VOICES, "VOICES", {QP_P_8, QP_P_4, QP_HOLLOW, QP_PARA}},
-    {SEC_POLY, PK_EDIT, VZ_VCF, "VCF", {QP_P_CUT, QP_P_RES, QP_P_ENV, QP_P_KBD}},
+    {SEC_POLY, PK_EDIT, VZ_VOICES, "VOICES", {QP_P_16, QP_P_8, QP_P_4, QP_PARA}},
+    {SEC_POLY, PK_EDIT, VZ_WAVE, "OSC", {QP_P_WAVE, QP_P_PW, QP_P_PWM, QP_P_DET}},
+    {SEC_POLY, PK_EDIT, VZ_VCF, "VCF", {QP_P_CUT, QP_P_RES, QP_P_ENV, QP_P_FMODE}},
     {SEC_POLY, PK_ENV, VZ_ENV_ADSR, "ADSR", {QP_P_A, QP_P_D, QP_P_S, QP_P_R}},
-    {SEC_POLY, PK_LFO, VZ_MOD, "LFO", {QP_LFO, QP_P_LFO, QP_P_TREM, QP_P_ENV}},
+    {SEC_POLY, PK_LFO, VZ_MOD, "LFO", {QP_LFO, QP_LFO_W, QP_P_LFO, QP_P_TREM}},
+    {SEC_POLY, PK_LFO, VZ_MOD, "PITCH", {QP_P_VIB, QP_P_KBD, _, _}},
     {SEC_POLY, PK_SCL, VZ_KEYS, "KEYBOARD", {QP_SPLIT, QP_CHORD, QP_CHBASS, QP_L_OCT}},
     {SEC_LEAD, PK_EDIT, VZ_VCO, "VCO", {QP_L_WAVE, QP_L_VCO2, QP_L_INT, QP_L_DET}},
+    {SEC_LEAD, PK_EDIT, VZ_VCO, "MIX", {QP_L_W2, QP_L_SYNC, QP_L_SUB, QP_L_NOISE}},
     {SEC_LEAD, PK_EDIT, VZ_VCF, "VCF", {QP_L_CUT, QP_L_RES, QP_L_ENV, QP_L_PWM}},
+    {SEC_LEAD, PK_EDIT, VZ_VCF, "FILTER", {QP_L_FMODE, QP_L_DRIVE, QP_L_KBD, _}},
     {SEC_LEAD, PK_ENV, VZ_ENV_LEAD, "ADS/ASR", {QP_L_A, QP_L_DEC, QP_L_SLOW, QP_L_R}},
     {SEC_LEAD, PK_LFO, VZ_MOD, "VIBRATO", {QP_L_VIB, QP_L_VDEL, QP_L_TRILL, QP_L_TOUCH}},
+    {SEC_LEAD, PK_LFO, VZ_MOD, "LFO", {QP_LFO, QP_LFO_W, _, _}},
     {SEC_LEAD, PK_SCL, VZ_KEYS, "PLAY", {QP_L_2V, QP_L_POR1, QP_L_POR2, QP_L_TRIG}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "SEQUENCER", {QP_ARP, QP_TRSPD, QP_SYNC, QP_ARP_OCT}},
     {SEC_PHAS, PK_EDIT, VZ_PH_IN, "INPUTS", {QP_PH_B, QP_PH_S, QP_PH_P, QP_PH_L}},

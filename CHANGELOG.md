@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1
+
+Sound design from scratch.
+
+- Waveform choice (SAW, SQR, PULSE, TRI, SINE) for the bass, strings, poly and both lead oscillators, with pulse width and PWM.
+- Filter types LP24, LP12, BP and HP, with drive and key tracking, on the bass, poly and lead.
+- Lead: oscillator sync, sub-oscillator and noise. Poly: detune and vibrato. Strings and poly: true 16' / 8' / 4' footages.
+- LFO shapes SINE, TRI, SAW, SQR and S&H, routable to the bass and poly filters.
+- 12 new programs (69-80), 80 in all ([app/docs/PRESETS.md](app/docs/PRESETS.md)).
+- Fixes: 8' is now at the key's own pitch (strings and poly sound an octave lower than in 1.0); the lead's DET is in real cents (1.0's was about ten times too wide).
+- Programs are stored in a new format across more flash. Programs saved with 1.0 are not carried over; SETUP settings are.
+- Package identity FM-1_52.
+
 ## 1.0.1
 
 - A package identity of QUADRO's own, FM-1_52 (1.0's FM-1_96 is the start of other firmwares').

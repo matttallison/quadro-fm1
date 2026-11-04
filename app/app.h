@@ -18,8 +18,12 @@ void app_tick(void);
 void app_overload(void);
 
 /* the store: the programs and the settings; the panel calibration and Bluetooth's (the platform's) */
-enum { OBJ_PROGS, OBJ_PANEL, OBJ_BLE, OBJ_PROGS2, OBJ_NOBJ };   /* the programs in two halves */
-#define APP_STORE_MAP {0xDC000u, 0xD4000u, 0xD6000u, 0xDA000u}
+enum { OBJ_PROGS, OBJ_PANEL, OBJ_BLE, OBJ_PROGS2, OBJ_PROGS3, OBJ_PROGS4, OBJ_NOBJ };   /* the programs in four parts */
+#define APP_STORE_MAP {0xDC000u, 0xD4000u, 0xD6000u, 0xDA000u, 0xD8000u, 0xD2000u}
+
+/* the host simulator's checks (host/plat_host.c "expect"): prog (1-based), pwave, bwave, lwave, ppw, nprog, section, page */
+#define APP_HOST_EXPECT
+int app_expect(const char *what, int *got);
 
 void app_init(void);
 void app_render(int32_t *lr, uint32_t n, uint32_t master_q12);

@@ -1,6 +1,6 @@
 # QUADRO's programs
 
-68 factory programs. Turn PRESET to pick one; MIDI program change 0-67 picks 1-68. *Sections* are the parts that sound; *features* are the parts of QUADRO each one leans on. Every lead takes TOUCH (key pressure) as pitch bend unless it says TOUCH BRILL (pressure opens the filter).
+80 factory programs. Turn PRESET to pick one; MIDI program change 0-79 picks 1-80. *Sections* are the parts that sound; *features* are the parts of QUADRO each one leans on. Every lead takes TOUCH (key pressure) as pitch bend unless it says TOUCH BRILL (pressure opens the filter).
 
 ## 1-16: The first bank
 
@@ -133,6 +133,25 @@ Things the Quadra's own owner's manual suggested: inverted intervals, trills, a 
 | 67 | THUNDER | bass strings  | PHASER |
 | 68 | LEGATO HORN | lead  | TOUCH BRILL  |
 
+## 69-80: Sound design
+
+New in 1.1: programs built from the oscillator, filter and LFO controls. Open any of them to see how it was made (OSC, FILTER, MIX and LFO pages).
+
+| # | Program | Sections | Features |
+| --- | --- | --- | --- |
+| 69 | SAW BASS | bass  | SAW, DRIVE |
+| 70 | WOBBLE BASS | bass  | LFO to filter |
+| 71 | ACID LEAD | lead  | DRIVE, resonance |
+| 72 | SYNC LEAD | lead  | OSC SYNC |
+| 73 | PWM POLY | poly  | PULSE, PWM, PHASER |
+| 74 | SUPER SAW | poly  | DETUNE |
+| 75 | SINE ORGAN | poly  | SINE, 16' 8' 4' |
+| 76 | BP WAH | poly  | BP filter, LFO |
+| 77 | WIND NOISE | lead  | NOISE, BP filter |
+| 78 | S&H POLY | poly  | S&H LFO |
+| 79 | TRI FLUTE | lead  | TRI, SINE |
+| 80 | TAPE KEYS | poly  | TRI, vibrato |
+
 ## Your own
 
-Edit any program and press SAVE, pick the slot with PRESET, and SAVE again. SETUP > FACT puts all 68 back.
+Edit any program and press SAVE, pick the slot with PRESET, and SAVE again. SETUP > FACT puts all 80 back.

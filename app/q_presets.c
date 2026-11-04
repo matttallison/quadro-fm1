@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* QUADRO: the 68 factory programs (the original had 16 programmable voices). Each starts from the defaults
+/* QUADRO: the 80 factory programs (the original had 16 programmable voices). Each starts from the defaults
  * (q_params.c QD[].def) and sets what makes it; a list of (parameter, value), ended by 0xFF. */
 typedef struct {
     const char *name;
@@ -8,7 +8,7 @@ typedef struct {
 #define END 0xFF
 #define NEG(v) ((uint8_t)(int8_t)(v))
 
-static const q_factory_t FACTORY[68] = {
+static const q_factory_t FACTORY[80] = {
     {"QUADRO", {QP_B_EB16, 1, QP_B_EB8, 1, QP_B_CUT, 46, QP_B_RES, 40, QP_B_DEC, 86,
                 QP_S_8, 1, QP_S_4, 1, QP_S_ATK, 56, QP_S_REL, 84, QP_M_S, 104,
                 QP_P_8, 1, QP_P_4, 0, QP_M_P, 70, QP_P_CUT, 44, QP_P_ENV, 70,
@@ -282,6 +282,49 @@ static const q_factory_t FACTORY[68] = {
                      QP_L_WAVE, 3, QP_L_VCO2, 1, QP_L_DET, 6, QP_L_CUT, 40, QP_L_RES, 24, QP_L_ENV, 90, QP_L_PWM, 110,
                      QP_L_A, 24, QP_L_DEC, 20, QP_L_SLOW, 0, QP_L_R, 50, QP_L_TRIG, 0, QP_L_POR1, 36, QP_L_POR2, 36,
                      QP_L_VIB, 36, QP_L_VDEL, 90, QP_L_TOUCH, 2, QP_M_L, 120, QP_PH_S, 0, QP_REV, 44, END}},
+    /* ---- sound design: the oscillators, the filter types, the LFO, the sync, the noise (1.1) */
+    {"SAW BASS", {QP_B_EB16, 1, QP_B_EB8, 1, QP_B_WAVE, 1, QP_B_CUT, 46, QP_B_RES, 44, QP_B_ENV, 90, QP_B_DEC, 84,
+                  QP_B_DRIVE, 30, QP_B_KBD, 30, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0, QP_M_L, 0,
+                  QP_M_B, 120, QP_SPLIT, 72, QP_PH_S, 0, QP_REV, 10, END}},
+    {"WOBBLE BASS", {QP_B_EB16, 1, QP_B_EB8, 1, QP_B_WAVE, 1, QP_B_CUT, 34, QP_B_RES, 74, QP_B_ENV, 20, QP_B_DEC, 127,
+                     QP_B_LFO, 120, QP_LFO, 84, QP_LFO_W, 1, QP_B_DRIVE, 40, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0,
+                     QP_M_P, 0, QP_M_L, 0, QP_M_B, 120, QP_SPLIT, 72, QP_PH_S, 0, QP_REV, 6, END}},
+    {"ACID LEAD", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0,
+                   QP_L_WAVE, 0, QP_L_VCO2, 0, QP_L_CUT, 30, QP_L_RES, 104, QP_L_ENV, 112, QP_L_A, 0, QP_L_DEC, 42,
+                   QP_L_SLOW, 1, QP_L_R, 24, QP_L_DRIVE, 70, QP_L_KBD, 40, QP_L_TRIG, 0, QP_L_POR1, 26, QP_L_POR2, 26,
+                   QP_M_L, 112, QP_PH_S, 0, QP_DLY, 40, QP_DTIME, 2, QP_REV, 16, END}},
+    {"SYNC LEAD", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0,
+                   QP_L_WAVE, 0, QP_L_VCO2, 1, QP_L_W2, 1, QP_L_INT, 7, QP_L_DET, 0, QP_L_SYNC, 1, QP_L_CUT, 74,
+                   QP_L_RES, 24, QP_L_ENV, 56, QP_L_A, 0, QP_L_DEC, 100, QP_L_R, 40, QP_L_VIB, 30, QP_L_VDEL, 70,
+                   QP_L_TOUCH, 2, QP_M_L, 112, QP_PH_S, 0, QP_DLY, 30, QP_DTIME, 2, QP_REV, 30, END}},
+    {"PWM POLY", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_16, 1, QP_P_8, 1, QP_P_4, 0, QP_P_WAVE, 2,
+                  QP_P_PW, 44, QP_P_PWM, 92, QP_P_DET, 10, QP_LFO, 40, QP_P_CUT, 72, QP_P_RES, 14, QP_P_ENV, 36,
+                  QP_P_A, 40, QP_P_D, 90, QP_P_S, 100, QP_P_R, 80, QP_M_P, 112, QP_M_L, 0, QP_PH_S, 0, QP_PH_P, 1,
+                  QP_PH_SPD, 24, QP_PH_DEP, 70, QP_PH_RES, 30, QP_REV, 40, END}},
+    {"SUPER SAW", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 1, QP_P_4, 1, QP_P_WAVE, 0, QP_P_DET, 28,
+                   QP_P_CUT, 80, QP_P_RES, 10, QP_P_ENV, 30, QP_P_A, 30, QP_P_D, 100, QP_P_S, 110, QP_P_R, 90,
+                   QP_M_P, 106, QP_M_L, 0, QP_PH_S, 0, QP_DLY, 24, QP_DTIME, 1, QP_REV, 40, END}},
+    {"SINE ORGAN", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_16, 1, QP_P_8, 1, QP_P_4, 1, QP_P_WAVE, 4,
+                    QP_P_CUT, 127, QP_P_ENV, 0, QP_P_A, 0, QP_P_D, 70, QP_P_S, 127, QP_P_R, 20, QP_P_TREM, 40,
+                    QP_LFO, 70, QP_M_P, 116, QP_M_L, 0, QP_PH_S, 0, QP_REV, 24, END}},
+    {"BP WAH", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 1, QP_P_4, 0, QP_P_WAVE, 0, QP_P_FMODE, 2,
+                QP_P_CUT, 52, QP_P_RES, 92, QP_P_ENV, 40, QP_P_LFO, 100, QP_LFO, 70, QP_LFO_W, 1, QP_P_A, 0, QP_P_D, 100,
+                QP_P_S, 120, QP_P_R, 40, QP_M_P, 124, QP_M_L, 0, QP_PH_S, 0, QP_REV, 20, END}},
+    {"WIND NOISE", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0,
+                    QP_L_WAVE, 0, QP_L_VCO2, 0, QP_L_NOISE, 127, QP_L_FMODE, 2, QP_L_CUT, 64, QP_L_RES, 76, QP_L_ENV, 70,
+                    QP_L_A, 90, QP_L_DEC, 127, QP_L_R, 90, QP_L_KBD, 80, QP_L_TOUCH, 2, QP_M_L, 124, QP_PH_S, 0,
+                    QP_DLY, 30, QP_DTIME, 0, QP_REV, 60, END}},
+    {"S&H POLY", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 1, QP_P_4, 1, QP_P_WAVE, 0, QP_P_CUT, 40,
+                  QP_P_RES, 52, QP_P_ENV, 30, QP_P_LFO, 100, QP_LFO, 76, QP_LFO_W, 4, QP_P_VIB, 22, QP_P_A, 0,
+                  QP_P_D, 80, QP_P_S, 80, QP_P_R, 50, QP_M_P, 112, QP_M_L, 0, QP_PH_S, 0, QP_DLY, 40, QP_DTIME, 2,
+                  QP_REV, 30, END}},
+    {"TRI FLUTE", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0,
+                   QP_L_WAVE, 5, QP_L_VCO2, 1, QP_L_W2, 4, QP_L_INT, 12, QP_L_DET, 4, QP_L_CUT, 92, QP_L_RES, 0,
+                   QP_L_ENV, 20, QP_L_A, 20, QP_L_DEC, 100, QP_L_R, 50, QP_L_VIB, 40, QP_L_VDEL, 70, QP_L_TOUCH, 2,
+                   QP_M_L, 118, QP_PH_S, 0, QP_REV, 40, END}},
+    {"TAPE KEYS", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 1, QP_P_4, 1, QP_P_WAVE, 3, QP_P_DET, 8,
+                   QP_P_VIB, 46, QP_LFO, 24, QP_P_CUT, 90, QP_P_RES, 8, QP_P_ENV, 20, QP_P_A, 0, QP_P_D, 80, QP_P_S, 40,
+                   QP_P_R, 60, QP_M_P, 112, QP_M_L, 0, QP_PH_S, 0, QP_REV, 35, END}},
 };
 
 static void q_factory(q_patch_t *p, uint32_t k)
@@ -292,6 +335,11 @@ static void q_factory(q_patch_t *p, uint32_t k)
     for (i = 0; i + 1u < sizeof f->set && f->set[i] != END; i += 2u)
         if (f->set[i] < QP_N)
             p->v[f->set[i]] = (int8_t)f->set[i + 1];
+    if (p->v[QP_HOLLOW]) {                      /* 1.0's HOLLOW (a square for strings and poly): now their WAVE */
+        if (!p->v[QP_S_WAVE]) p->v[QP_S_WAVE] = 1;
+        if (!p->v[QP_P_WAVE]) p->v[QP_P_WAVE] = 1;
+        p->v[QP_HOLLOW] = 0;
+    }
 }
 #undef END
 #undef NEG

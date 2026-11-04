@@ -11,14 +11,26 @@ key 14 down 90
 key 19 down 100 60
 wait 700
 shot home.png
-# the bass's VOICES page, then its VCF
+# the bass: VOICES, OSC, VCF, FILTER
 turn ALGO -6
-wait 200
+wait 300
+shot voices-bass.png
+tap EDIT
+wait 300
+shot osc-bass.png
 tap EDIT
 wait 300
 shot edit-bass.png
+tap EDIT
+wait 300
+shot filter-bass.png
+# the lead: VCO, MIX, VCF
 turn ALGO 3
-wait 200
+wait 300
+shot vco-lead.png
+tap EDIT
+wait 300
+shot mix-lead.png
 tap EDIT
 wait 300
 shot edit-lead.png

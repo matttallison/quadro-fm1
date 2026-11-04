@@ -10,10 +10,10 @@ They all play at once and share the keyboard.
 
 | Section | What it is |
 | --- | --- |
-| **BASS** | A monophonic bass on the keys below the split, lowest note wins. ELEC BASS 16' and 8' squares through a 24 dB filter with a decay envelope. STRING BASS 16' and 8' goes through the string ensemble. |
-| **STRINGS** | Divide-down string voices at 8' and 4', with the three-phase ensemble chorus and an attack/release envelope. |
-| **POLY** | A polyphonic synth: 8' and 4' (or HOLLOW), a 24 dB filter, ADSR, LFO, tremolo. PARA makes it paraphonic, with one envelope and one filter for all keys, as on the original. |
-| **LEAD** | A two-oscillator monosynth on the top key. It has its own filter, ADS/ASR, portamento on each oscillator, vibrato, trill, two-voice mode and the sequencer. |
+| **BASS** | A monophonic bass on the keys below the split, lowest note wins. ELEC BASS 16' and 8' through a filter with a decay envelope; the waveform, pulse width, filter type, drive and key tracking are yours. STRING BASS 16' and 8' goes through the string ensemble. |
+| **STRINGS** | Divide-down string voices at 16', 8' and 4' in a waveform of your choice, with the three-phase ensemble chorus and an attack/release envelope. |
+| **POLY** | A polyphonic synth: 16', 8' and 4' footages in SAW, SQR, PULSE (with PWM), TRI or SINE, detune, a filter (LP24, LP12, BP, HP), ADSR, LFO, vibrato, tremolo. PARA makes it paraphonic, with one envelope and one filter for all keys, as on the original. |
+| **LEAD** | A two-oscillator monosynth on the top key. Its two oscillators each pick a waveform, with sync, a sub-oscillator and noise; it has its own filter (four types, drive, key tracking), ADS/ASR, portamento on each oscillator, vibrato, trill, two-voice mode and the sequencer. |
 | **PHASER** | A 14-stage phase shifter. Each section can be routed into it. The sweep runs by itself, by sample-and-hold, from the envelope or from the LFO. |
 | **MIXER** | The four section levels, the reverb, and a ping-pong delay that follows MIDI clock. |
 
@@ -34,7 +34,7 @@ reproduce 40–90 Hz. Set BASS OCTAVE to −1 for the original register on headp
 | **FX** | The phase shifter: inputs, then sweep |
 | **GLO** | The output mixer, then the room (reverb, delay, delay time) |
 | **HOME** | The four sections at a glance, with knobs 1–4 as their levels. Hold it for SETUP. |
-| **PRESET** knob | Loads a program, 1–68 ([the list](https://github.com/matttallison/quadro-fm1/blob/main/app/docs/PRESETS.md)) |
+| **PRESET** knob | Loads a program, 1–80 ([the list](https://github.com/matttallison/quadro-fm1/blob/main/app/docs/PRESETS.md)) |
 | **SAVE** | Saves the current sound: PRESET picks the slot, SAVE again writes, any other button cancels |
 | **PLAY** | HOLD: the keys stay down, like the original's HOLD footswitch |
 | **REC** | SUSTAIN: the longest release |
@@ -54,6 +54,25 @@ shows the parameter's full name and value.
 ![The lead's ADS/ASR envelope](img/envelope.png)
 
 ![The phaser's inputs](img/phaser.png)
+
+## Sound design
+
+Every section has OSC and FILTER pages (EDIT steps through them), so a sound can be built from nothing:
+
+| Control | Where | Choices |
+| --- | --- | --- |
+| **WAVE** | bass, strings, poly, lead (both oscillators) | SAW, SQR, PULSE, TRI, SINE (the lead also has its original waveforms) |
+| **PW** / **PWM** | bass, strings, poly | Pulse width; poly PWM sweeps it with the LFO |
+| **DET** | poly | Detune of the voices in cents (the lead's DET is real cents too) |
+| **16' / 8' / 4'** | strings, poly | Footages, each at true pitch: 8' is the key's own pitch |
+| **SYNC** | lead MIX page | Oscillator 2 hard-synced to oscillator 1 |
+| **SUB** / **NOISE** | lead MIX page | A sub-oscillator an octave down; white noise |
+| **FMODE** | bass, poly, lead | LP24, LP12, BP, HP |
+| **DRIVE** | bass, lead | Pre-filter saturation |
+| **KBD** | bass, lead | Filter key tracking |
+| **LFO shape** | LFO page | SINE, TRI, SAW, SQR, S&H; the bass and poly can send it to the filter, the poly to vibrato |
+
+Programs 69–80 are examples of each.
 
 ## Playing
 
@@ -79,7 +98,7 @@ Hold HOME. Press EDIT to switch between the two pages. Press HOME to leave.
 | Page | Knob 1 | Knob 2 | Knob 3 | Knob 4 |
 | --- | --- | --- | --- | --- |
 | 1 | MIDI channel (OMNI, 1–16) | Bluetooth MIDI on/off | TOUCH: 0 off, 1 (least) – 6 (most sensitive) | CLOCK OUT on/off |
-| 2 | TEMPO (internal clock) | RUN: START / STOP | — | FACT: turn twice to restore the 68 factory programs |
+| 2 | TEMPO (internal clock) | RUN: START / STOP | — | FACT: turn twice to restore the 80 factory programs |
 
 ![SETUP, page 1](img/setup.png)
 
@@ -95,7 +114,7 @@ QUADRO takes MIDI over USB, Bluetooth and the TRS jack, on the SETUP channel (OM
 | CC 64 | Sustain |
 | CC 74 | The current section's filter cutoff |
 | Channel pressure | The lead's TOUCH |
-| Program change 0–67 | Programs 1–68 |
+| Program change 0–79 | Programs 1–80 |
 | Clock, start, stop, continue | The sequencer, trill and delay follow it. The header shows the tempo. |
 
 **Out:** the keys you play go out as notes with velocity, over USB and Bluetooth. With CLOCK OUT on, QUADRO sends
@@ -109,4 +128,4 @@ SETUP > BLE turns Bluetooth off, and the setting is kept.
 Programs and settings are kept in the FM-1's flash. SAVE stores the current sound in a program slot. MIDI channel,
 Bluetooth, touch, clock and tempo are saved with them.
 
-When you update from a 0.x test build, your settings are kept and the 68 factory programs replace the old ones.
+When you update from a 0.x test build, your settings are kept and the 80 factory programs replace the old ones.

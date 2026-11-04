@@ -109,69 +109,107 @@ void app_overload(void)
 }
 
 /* ------------------------------------------------------------------ the store --- */
-#define QS_MAGIC 0x34524451u                     /* "QDR4": a range of programs an object (1.0) */
-#define QS_MAGIC_OLD 0x33524451u                 /* "QDR3" (0.4-0.9): its settings kept, its programs not (1.0's
-                                                  * factory sounds replace the test builds') */
-#define QS_HALF (NPROG / 2u)
+#define QS_MAGIC 0x35524451u                     /* "QDR5": only the programs that differ from the factory's (1.1) */
+#define QS_MAGIC_V4 0x34524451u                  /* "QDR4" (1.0) and "QDR3" (0.4 - 0.9): every program, two objects: ... */
+#define QS_MAGIC_V3 0x33524451u                  /* ... their settings are kept, their programs are not (the factory ones are new) */
+#define QS_PARTS 4u
+#define QS_PART (NPROG / QS_PARTS)
 static uint8_t qs_buf[PLAT_STORE_MAX] __attribute__((aligned(4)));
-/* object k: programs [k * QS_HALF, +QS_HALF), then (object 0) the settings */
+static uint32_t qs_last[QS_PARTS];               /* what each part held when last written (an unchanged part is not written) */
+static const uint8_t QS_OBJ[QS_PARTS] = {OBJ_PROGS, OBJ_PROGS2, OBJ_PROGS3, OBJ_PROGS4};
+/* part k: the programs [k * QS_PART, +QS_PART) that are not the factory's (index, name, parameters), then (part 0) the
+ * settings. A program you have not changed follows the factory's, so an update's better programs reach it. */
 static uint32_t qs_pack(uint8_t *b, uint32_t k)
 {
-    uint8_t *p = b;
-    uint32_t i, m = QS_MAGIC, first = k * QS_HALF;
+    uint8_t *p = b, *count;
+    uint32_t i, m = QS_MAGIC;
     memcpy(p, &m, 4); p += 4;
     *p++ = (uint8_t)QP_N;
-    *p++ = (uint8_t)first;
-    *p++ = (uint8_t)QS_HALF;
-    for (i = first; i < first + QS_HALF; i++) {
-        memcpy(p, progs[i].v, QP_N); p += QP_N;
-        memcpy(p, progs[i].name, QD_NAME); p += QD_NAME;
+    count = p++;
+    *count = 0;
+    for (i = k * QS_PART; i < (k + 1u) * QS_PART && i < NPROG; i++) {
+        q_patch_t f;
+        q_factory(&f, i);
+        if (memcmp(f.v, progs[i].v, QP_N) || memcmp(f.name, progs[i].name, QD_NAME)) {
+            *p++ = (uint8_t)i;
+            memcpy(p, progs[i].name, QD_NAME); p += QD_NAME;
+            memcpy(p, progs[i].v, QP_N); p += QP_N;
+            (*count)++;
+        }
     }
-    *p++ = ui.prog;
-    *p++ = ui.midi_ch;
-    *p++ = ui.ble_off;
-    *p++ = ui.tsens;
-    *p++ = ui.clk_out;
-    *p++ = (uint8_t)(ui.tempo10 & 255u);
-    *p++ = (uint8_t)(ui.tempo10 >> 8);
+    if (k == 0) {
+        *p++ = ui.prog;
+        *p++ = ui.midi_ch;
+        *p++ = ui.ble_off;
+        *p++ = ui.tsens;
+        *p++ = ui.clk_out;
+        *p++ = (uint8_t)(ui.tempo10 & 255u);
+        *p++ = (uint8_t)(ui.tempo10 >> 8);
+    }
     return (uint32_t)(p - b);
+}
+static void qs_settings(const uint8_t *p, uint32_t left)     /* the settings bytes, as many as there are */
+{
+    if (left < 3u) return;
+    ui.prog = (uint8_t)(p[0] % NPROG);
+    ui.midi_ch = (uint8_t)(p[1] <= 16u ? p[1] : 0u);
+    ui.ble_off = p[2] ? 1u : 0u;
+    if (left >= 4u)
+        ui.tsens = (uint8_t)(p[3] <= 6u ? p[3] : 2u);
+    if (left >= 7u) {
+        ui.clk_out = p[4] ? 1u : 0u;
+        ui.tempo10 = (uint16_t)q_clampi(p[5] | p[6] << 8, 400, 2400);
+    }
 }
 static int qs_unpack(const uint8_t *b, uint32_t len, int settings)
 {
-    uint32_t m, np = b[4], first = b[5], ns = b[6], i, k;
-    const uint8_t *p = b + 7;
+    uint32_t m, np, i, k;
+    const uint8_t *p, *end = b + len;
+    if (len < 7u) return -1;
     memcpy(&m, b, 4);
-    if ((m != QS_MAGIC && m != QS_MAGIC_OLD) || np < 8u || np > 200u || first + ns > NPROG ||
-        len < 7u + ns * (np + QD_NAME) + 3u)
-        return -1;
-    if (m == QS_MAGIC_OLD)
-        p += ns * (np + QD_NAME);
-    for (i = first; m == QS_MAGIC && i < first + ns; i++) {
-        q_patch_init(&progs[i], "");
-        for (k = 0; k < np && k < QP_N; k++)
-            progs[i].v[k] = (int8_t)q_clampi((int8_t)p[k], QD[k].min, QD[k].max);
-        p += np;
-        memcpy(progs[i].name, p, QD_NAME);
-        progs[i].name[QD_NAME - 1] = 0;
-        p += QD_NAME;
+    np = b[4];
+    if (m == QS_MAGIC_V4 || m == QS_MAGIC_V3) {   /* 0.4 - 1.0: header, ns whole programs, the settings */
+        uint32_t ns = b[6];
+        if (np < 8u || np > 200u || len < 7u + ns * (np + QD_NAME) + 3u) return -1;
+        if (settings) qs_settings(b + 7 + ns * (np + QD_NAME), len - (7u + ns * (np + QD_NAME)));
+        return 0;
     }
-    if (settings) {
-        ui.prog = (uint8_t)(p[0] % NPROG);
-        ui.midi_ch = (uint8_t)(p[1] <= 16u ? p[1] : 0u);
-        ui.ble_off = p[2] ? 1u : 0u;
-        if (len >= (uint32_t)(p - b) + 4u)
-            ui.tsens = (uint8_t)(p[3] <= 6u ? p[3] : 2u);
-        if (len >= (uint32_t)(p - b) + 7u) {
-            ui.clk_out = p[4] ? 1u : 0u;
-            ui.tempo10 = (uint16_t)q_clampi(p[5] | p[6] << 8, 400, 2400);
+    if (m != QS_MAGIC || np < 8u || np > 200u) return -1;
+    p = b + 6;
+    for (i = 0; i < b[5]; i++) {
+        uint32_t idx;
+        if (p + 1 + QD_NAME + np > end) return -1;
+        idx = p[0];
+        if (idx < NPROG) {
+            q_patch_init(&progs[idx], "");
+            memcpy(progs[idx].name, p + 1, QD_NAME);
+            progs[idx].name[QD_NAME - 1] = 0;
+            for (k = 0; k < np && k < QP_N; k++)
+                progs[idx].v[k] = (int8_t)q_clampi((int8_t)p[1 + QD_NAME + k], QD[k].min, QD[k].max);
         }
+        p += 1 + QD_NAME + np;
     }
+    if (settings) qs_settings(p, (uint32_t)(end - p));
     return 0;
+}
+static uint32_t qs_hash(const uint8_t *b, uint32_t n)
+{
+    uint32_t h = 2166136261u;
+    while (n--) h = (h ^ *b++) * 16777619u;
+    return h;
 }
 static int qs_save_all(void)
 {
-    int rc = plat_store_save(OBJ_PROGS, qs_buf, qs_pack(qs_buf, 0));
-    return rc ? rc : plat_store_save(OBJ_PROGS2, qs_buf, qs_pack(qs_buf, 1));
+    uint32_t k;
+    for (k = 0; k < QS_PARTS; k++) {
+        uint32_t n = qs_pack(qs_buf, k), h = qs_hash(qs_buf, n);
+        if (h != qs_last[k]) {
+            int rc = plat_store_save(QS_OBJ[k], qs_buf, n);
+            if (rc) return rc;
+            qs_last[k] = h;
+        }
+    }
+    return 0;
 }
 
 void app_init(void)
@@ -181,12 +219,13 @@ void app_init(void)
         plat_cpu2_set(1);                       /* (here only: at power-on, before the audio; one core if it fails) */
     q_init();
     ui_init();
-    n = plat_store_load(OBJ_PROGS, qs_buf, sizeof qs_buf);
-    if (n > 0)
-        qs_unpack(qs_buf, (uint32_t)n, 1);
-    n = plat_store_load(OBJ_PROGS2, qs_buf, sizeof qs_buf);
-    if (n > 0)
-        qs_unpack(qs_buf, (uint32_t)n, 0);
+    for (n = 0; n < (int)QS_PARTS; n++) {
+        int len = plat_store_load(QS_OBJ[n], qs_buf, sizeof qs_buf);
+        if (len > 0)
+            qs_unpack(qs_buf, (uint32_t)len, n == 0);
+    }
+    for (n = 0; n < (int)QS_PARTS; n++)                 /* what is stored now: a part that stays so is not written again */
+        qs_last[n] = qs_hash(qs_buf, qs_pack(qs_buf, (uint32_t)n));
     prog_load(ui.prog);
     ui.home = 1;
     ui.setup = ui.saving = ui.hold = ui.sus = 0;
@@ -288,3 +327,21 @@ void app_frame(void)
     }
     ui_draw();
 }
+
+#ifdef PLAT_HOST
+int app_expect(const char *what, int *got)
+{
+    if (!strcmp(what, "prog")) *got = ui.prog + 1;
+    else if (!strcmp(what, "nprog")) *got = NPROG;
+    else if (!strcmp(what, "section")) *got = ui.sec;
+    else if (!strcmp(what, "page")) *got = (int)ui.page;
+    else if (!strcmp(what, "pwave")) *got = qp.v[QP_P_WAVE];
+    else if (!strcmp(what, "bwave")) *got = qp.v[QP_B_WAVE];
+    else if (!strcmp(what, "lwave")) *got = qp.v[QP_L_WAVE];
+    else if (!strcmp(what, "pdet")) *got = qp.v[QP_P_DET];
+    else if (!strcmp(what, "pfmode")) *got = qp.v[QP_P_FMODE];
+    else if (!strcmp(what, "edited")) *got = ui.edited;
+    else return 0;
+    return 1;
+}
+#endif

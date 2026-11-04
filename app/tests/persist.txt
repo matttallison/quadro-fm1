@@ -1,0 +1,19 @@
+# edit poly WAVE (OSC page), SAVE to program 75, reboot, expect it back
+wait 1500
+master 4096
+tap HOME
+turn ALGO 1
+turn ALGO 1
+turn ALGO 1
+expect section 2
+tap EDIT
+turn K1 3
+expect pwave 3
+tap SAVE
+turn PRESET 74
+tap SAVE
+wait 800
+reboot
+wait 1500
+expect prog 75
+expect pwave 3

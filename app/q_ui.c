@@ -35,7 +35,7 @@ static const uint16_t SEC_COL[SEC_N] = {RGB(236, 84, 60), RGB(244, 180, 52), RGB
 static const uint16_t SEC_DARK[SEC_N] = {RGB(70, 22, 16), RGB(72, 52, 10), RGB(20, 62, 34), RGB(16, 44, 82),
                                          RGB(56, 30, 74), RGB(60, 60, 64)};
 
-#define NPROG 68u
+#define NPROG 80u
 static q_patch_t progs[NPROG];                  /* the programs (flash: app.c) */
 
 static struct {
@@ -407,6 +407,8 @@ static int32_t vz_wave(uint32_t kind, uint32_t ph, uint32_t pw)
     switch (kind) {
     case 1: return ph < 32768u ? 26000 : -26000;                        /* square */
     case 2: return ph < pw ? 26000 : -26000;                            /* pulse of width pw / 65536 */
+    case 3: return ph < 32768u ? (int32_t)(ph * 52000u / 32768u) - 26000 : 26000 - (int32_t)((ph - 32768u) * 52000u / 32768u);  /* triangle */
+    case 4: return q_sin(ph << 16) * 26 / 32;                           /* sine */
     default: return 30000 - (int32_t)(ph * 60000u / 65536u);                /* saw */
     }
 }
@@ -419,19 +421,27 @@ static void vz_trace(int32_t x0, int32_t w, int32_t y0, int32_t h, uint16_t c, i
         py = y;
     }
 }
-typedef struct { int32_t w8, w4, hol, cyc, pw, kind2; } vzw_t;
-static int32_t vz_tone_at(int32_t x, void *a)    /* the 8' / 4' tone generator: the sum */
+typedef struct { int32_t w16, w8, w4, kind, cyc, pw; } vzw_t;
+static int32_t vz_tone_at(int32_t x, void *a)    /* the 16' / 8' / 4' tone generator: the sum of the footages on */
 {
     vzw_t *w = a;
     uint32_t ph = (uint32_t)(x * 65536 * w->cyc / 200);
     int32_t s = 0, n = 0;
-    if (w->w8) { s += vz_wave(w->hol, ph, 32768), n++; }
-    if (w->w4) { s += vz_wave(w->hol, ph * 2u, 32768), n++; }
+    if (w->w16) { s += vz_wave(w->kind, ph >> 1, (uint32_t)w->pw), n++; }
+    if (w->w8) { s += vz_wave(w->kind, ph, (uint32_t)w->pw), n++; }
+    if (w->w4) { s += vz_wave(w->kind, ph * 2u, (uint32_t)w->pw), n++; }
     return n ? s / n : 0;
+}
+/* a pulse width parameter (0..127) as a share of the cycle, 0..65535 (the synth's: ~6 % .. 50 %) */
+static int32_t vz_pw(int32_t p) { return 3932 + p * (32768 - 3932) / 127; }
+static void vz_wave_name(char *b, const char *name, int32_t kind, int32_t pwp)
+{
+    char *e = cat(b, name);
+    if (kind == 2) { e = cat(e, " "); e = num(e, vz_pw(pwp) * 100 / 65536, 0); cat(e, "%"); }
 }
 static void vz_voices(void)
 {
-    vzw_t w = {0, 0, 0, 2, 32768, 0};
+    vzw_t w = {0, 0, 0, 0, 2, 32768};
     uint32_t s = ui.sec;
     uint16_t c = SEC_COL[s];
     if (s == SEC_BASS) {                        /* the four bass voices: two pictures, ELEC and STRING */
@@ -454,21 +464,58 @@ static void vz_voices(void)
         }
         return;
     }
-    if (s == SEC_STR) w.w8 = P(QP_S_8), w.w4 = P(QP_S_4);
-    else w.w8 = P(QP_P_8), w.w4 = P(QP_P_4);
-    w.hol = P(QP_HOLLOW);
-    vz_trace(8, 200, 6, 64, w.w8 | w.w4 ? c : C_DIMT, vz_tone_at, &w);
-    cv_text_on(8, 72, &FONT_S, w.hol ? "HOLLOW (SQUARE)" : "SAWTOOTH", C_LBL, C_BG);
-    text_r(234, 72, w.w8 && w.w4 ? "8'+4'" : w.w8 ? "8'" : w.w4 ? "4'" : "--", c, C_BG);
+    {
+        char fb[16], *e = fb;
+        if (s == SEC_STR) w.w16 = P(QP_S_16), w.w8 = P(QP_S_8), w.w4 = P(QP_S_4), w.kind = P(QP_S_WAVE), w.pw = vz_pw(P(QP_S_PW));
+        else w.w16 = P(QP_P_16), w.w8 = P(QP_P_8), w.w4 = P(QP_P_4), w.kind = P(QP_P_WAVE), w.pw = vz_pw(P(QP_P_PW));
+        vz_trace(8, 200, 6, 64, w.w16 | w.w8 | w.w4 ? c : C_DIMT, vz_tone_at, &w);
+        cv_text_on(8, 72, &FONT_S, N_WAVE[w.kind], C_LBL, C_BG);
+        if (w.w16) e = cat(e, "16'");
+        if (w.w8) { if (e != fb) *e++ = '+'; e = cat(e, "8'"); }
+        if (w.w4) { if (e != fb) *e++ = '+'; e = cat(e, "4'"); }
+        if (e == fb) cat(e, "--");
+        text_r(234, 72, fb, c, C_BG);
+    }
 }
 /* the VCF: a 24 dB low-pass drawn in dB over a log frequency axis (integer: -24 dB an octave above the cutoff,
  * a resonance bump around it), the envelope's reach shaded */
-static int32_t vcf_db(int32_t x, int32_t xc, int32_t res)   /* x, xc: 0..239 (20 Hz .. 18 kHz, 9.8 octaves); dB x 8 */
+static int32_t vcf_db(int32_t x, int32_t xc, int32_t res, int32_t mode)   /* x, xc: 0..239 (20 Hz .. 18 kHz, 9.8 octaves); dB x 8 */
 {
-    int32_t d8 = (x - xc) * 327 / 1000, db8 = d8 > 0 ? -d8 * 24 : 0, b = 8 - (d8 < 0 ? -d8 : d8);
+    int32_t d8 = (x - xc) * 327 / 1000, db8, b = 8 - (d8 < 0 ? -d8 : d8);
+    switch (mode) {                             /* 0 LP24, 1 LP12, 2 BP (12 dB both sides), 3 HP12 */
+    case 1: db8 = d8 > 0 ? -d8 * 12 : 0; break;
+    case 2: db8 = (d8 > 0 ? -d8 : d8) * 12; break;
+    case 3: db8 = d8 < 0 ? d8 * 12 : 0; break;
+    default: db8 = d8 > 0 ? -d8 * 24 : 0; break;
+    }
     if (b > 0)                                  /* the resonance: up to ~18 dB, an octave either side */
         db8 += res * 18 * 8 / 127 * b * b / 64;
     return db8;
+}
+/* the OSC pages: the section's waveform (two cycles), its width, the unison / modulation it has */
+static void vz_oscpage(void)
+{
+    static const uint8_t BK[5] = {1, 0, 2, 3, 4};        /* the bass's WAVE order (SQR SAW PULSE TRI SINE) > the picture's kinds */
+    uint32_t s = ui.sec;
+    int32_t kind = s == SEC_BASS ? BK[P(QP_B_WAVE)] : s == SEC_STR ? P(QP_S_WAVE) : P(QP_P_WAVE);
+    int32_t pwp = s == SEC_BASS ? P(QP_B_PW) : s == SEC_STR ? P(QP_S_PW) : P(QP_P_PW);
+    uint16_t c = SEC_COL[s];
+    vzw_t w = {0, 1, 0, kind, 2, vz_pw(pwp)};
+    char b[24];
+    vz_grid();
+    if (s == SEC_BASS && P(QP_B_WAVE) == 0) w.kind = 1;
+    vz_trace(10, 220, 6, 62, c, vz_tone_at, &w);
+    if (s == SEC_POLY && P(QP_P_DET)) {                 /* the unison copy, a little apart, fainter */
+        int32_t x, py = 0;
+        for (x = 0; x < 220; x++) {
+            int32_t y = 37 - vz_wave(kind, (uint32_t)(x * 65536 * 2 / 220) + (uint32_t)P(QP_P_DET) * 600u, (uint32_t)w.pw) * 31 / 32768;
+            if (x) cv_line(10 + x - 1, py, 10 + x, y, mix565(c, C_BG, 140));
+            py = y;
+        }
+    }
+    vz_wave_name(b, s == SEC_BASS ? N_BWAVE[P(QP_B_WAVE)] : N_WAVE[kind], kind, pwp);
+    cv_text_on(6, 72, &FONT_S, b, C_LBL, C_BG);
+    if (s == SEC_POLY && P(QP_P_DET)) { cat(num(cat(b, "UNISON +"), P(QP_P_DET), 0), "c"); text_r(234, 72, b, c, C_BG); }
 }
 static void vz_vcf(void)
 {
@@ -478,6 +525,7 @@ static void vz_vcf(void)
     int32_t env = s == SEC_BASS ? P(QP_B_ENV) : s == SEC_POLY ? P(QP_P_ENV) : P(QP_L_ENV);
     int32_t xc = cut * 239 / 127, xe = q_clampi((cut + env / 2) * 239 / 127, 0, 239), x, py = 0;
     int32_t live = s == SEC_BASS ? q_mon.bass_env : s == SEC_POLY ? q_mon.poly_env : q_mon.lead_env;
+    int32_t mode = s == SEC_BASS ? P(QP_B_FMODE) : s == SEC_POLY ? P(QP_P_FMODE) : P(QP_L_FMODE);
     uint16_t c = SEC_COL[s];
     vz_grid();
     cv_rect(xc, 4, xe - xc, VZ_H - 8, SEC_DARK[s]);                 /* how far the envelope opens it */
@@ -486,13 +534,13 @@ static void vz_vcf(void)
         cv_rect(xl, 4, 2, VZ_H - 8, mix565(C_BG, c, 160));          /* where it is now */
     }
     for (x = 0; x < 240; x++) {
-        int32_t db = vcf_db(x, xc, res), y = 30 - db / 12;
+        int32_t db = vcf_db(x, xc, res, mode), y = 30 - db / 12;
         y = q_clampi(y, 2, VZ_H - 3);
         if (x) thick_line(x - 1, py, x, y, c);
         py = y;
     }
     cv_rect(xc, 2, 1, VZ_H - 4, C_TXT);
-    cv_text_on(4, VZ_H - 18, &FONT_S, "24dB", C_LBL, C_BG);
+    cv_text_on(4, VZ_H - 18, &FONT_S, mode == 0 ? "24dB" : mode == 1 ? "12dB" : mode == 2 ? "BAND" : "HIGH", C_LBL, C_BG);
 }
 /* envelopes: segment widths from the times (log), the level drawn; the voice's live level on the right */
 static int32_t seg_w(int32_t v) { return 6 + v * 46 / 127; }
@@ -558,15 +606,19 @@ static void vz_env(uint32_t vz)
 static void vz_vco(void)
 {
     int32_t wave = P(QP_L_WAVE), i;
+    static const int8_t LW2[5] = {0, 0, 1, 5, 6};
+    int32_t w2 = P(QP_L_W2) ? LW2[P(QP_L_W2)] : wave;
     uint16_t c = SEC_COL[SEC_LEAD];
     for (i = 0; i < 2; i++) {
-        int32_t x0 = 6 + i * 120, x, py = 0, on = i == 0 || P(QP_L_VCO2);
-        uint32_t pw = wave == 2 ? 6554u : wave == 3 ? 16384u + (uint32_t)(q_mon.lead_env * P(QP_L_PWM) >> 7) * 2u / 3u :
-                      wave == 4 ? 39322u + (uint32_t)(q_mon.lead_env * P(QP_L_PWM) >> 7) / 3u : 32768u;
+        int32_t x0 = 6 + i * 120, x, py = 0, on = i == 0 || P(QP_L_VCO2), wv = i ? w2 : wave;
+        uint32_t pw = i && P(QP_L_W2) ? 32768u :
+                      wv == 2 ? 6554u : wv == 3 ? 16384u + (uint32_t)(q_mon.lead_env * P(QP_L_PWM) >> 7) * 2u / 3u :
+                      wv == 4 ? 39322u + (uint32_t)(q_mon.lead_env * P(QP_L_PWM) >> 7) / 3u : 32768u;
+        uint32_t kind = wv == 0 ? 0u : wv == 5 ? 3u : wv == 6 ? 4u : 2u;      /* the picture's kinds: saw, pulse, tri, sine */
         char b[16];
         for (x = 0; x < 108; x++) {
             uint32_t ph = (uint32_t)(x * 65536 * 2 / 108) * (i && P(QP_L_INT) >= 12 ? 2u : 1u);
-            int32_t y = 36 - (wave ? vz_wave(2, ph, pw) : vz_wave(0, ph, 0)) * 26 / 32768;
+            int32_t y = 36 - vz_wave(kind, ph, pw) * 26 / 32768;
             if (x) thick_line(x0 + x - 1, py, x0 + x, y, on ? c : C_DIMT);
             py = y;
         }
@@ -574,11 +626,21 @@ static void vz_vco(void)
         else cat(b, "VCO1");
         cv_text_on(x0, 70, &FONT_S, b, on ? C_LBL : C_DIMT, C_BG);
     }
+    if (P(QP_L_SYNC) && P(QP_L_VCO2)) cv_text_on(120, 2, &FONT_S, "SYNC", C_TXT, C_BG);
+    if (P(QP_L_SUB)) cv_text_on(6, 2, &FONT_S, "SUB", C_LBL, C_BG);
+    if (P(QP_L_NOISE)) cv_text_on(48, 2, &FONT_S, "NOISE", C_LBL, C_BG);
 }
 static int32_t vz_lfo_at(int32_t x, void *a)
 {
     int32_t cyc = *(int32_t *)a;
-    return q_sin((uint32_t)(x * cyc) * (0xFFFFFFFFu / 220u)) * 3 / 4;
+    uint32_t ph = (uint32_t)(x * cyc) * (0xFFFFFFFFu / 220u);
+    switch (P(QP_LFO_W)) {                      /* the SHAPE */
+    case 1: return ((int32_t)((ph >> 31 ? ~ph : ph) >> 15) - 32768) * 3 / 4;
+    case 2: return ((int32_t)(ph >> 16) - 32768) * 3 / 4;
+    case 3: return ph >> 31 ? -24000 : 24000;
+    case 4: { uint32_t k = (uint32_t)(x * cyc) / 220u; uint32_t h = (k + 1u) * 2654435761u; return (int32_t)((h >> 16) & 0xFFFFu) - 32768; }
+    default: return q_sin(ph) * 3 / 4;
+    }
 }
 static void vz_mod(void)
 {
@@ -846,6 +908,7 @@ static void draw_viz(void)
     else if (ui.home) vz_home();
     else switch (vz) {
     case VZ_VOICES: vz_voices(); break;
+    case VZ_WAVE: vz_oscpage(); break;
     case VZ_VCF: vz_vcf(); break;
     case VZ_ENV_AD: case VZ_ENV_AR: case VZ_ENV_ADSR: case VZ_ENV_LEAD: vz_env(vz); break;
     case VZ_VCO: vz_vco(); break;

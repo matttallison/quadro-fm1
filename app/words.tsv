@@ -5,3 +5,15 @@ QUADRO	quadro
 STRG	strings
 PHAS	phaser
 RES	resonance
+PW	pulse width
+PWM	pulse width modulation
+DET	detune
+FMODE	filter type
+LP24	low pass, 24 d B
+LP12	low pass, 12 d B
+BP	band pass
+HP	high pass
+KBD	key tracking
+S&H	sample and hold
+SQR	square
+TRI	triangle

@@ -13,12 +13,14 @@ each knob does as you turn it.
   chorus, a polyphonic synth (or paraphonic, as the original was), and a two-oscillator lead with split glide,
   vibrato, trill and two-voice mode.
 - **One-finger playing:** CHORD plays a full shape from one key, and CH BASS adds its root on the bass.
-- **A sequencer** over the keys you hold (up, up/down, down, random, pedal, thumb, converge, diverge, as played, skip, a 16-step pattern; 1–3 octaves). It syncs to MIDI clock and can
+- **A sequencer** over the keys you hold (up, up/down, down, random, pedal, thumb, converge, diverge, as played, skip, a 16-step pattern; 1–4 octaves, with latch, and accent and tie on each step). It syncs to MIDI clock and can
   send clock too.
 - **Touch:** the FM-1's pressure-sensing keys bend the lead or open its filter, with adjustable sensitivity.
 - **105 programs:** the classics, what only the Quadra could do, paraphonic, sequences, chords and one-finger band
   sounds. See [the program list](app/docs/PRESETS.md).
-- **MIDI** in and out over USB, Bluetooth and TRS.
+- **MIDI** in and out over USB, Bluetooth and TRS: velocity to level and cutoff, a channel for each section, scale lock on MIDI keys.
+- **Master effects, scale lock, analog drift, lead unison,** tap tempo, compare and random.
+- **The Quadra's own sixteen factory voices** are programs 1–16.
 - Uses both of the FM-1's cores: the strings and poly run on the second one.
 
 **Hear it:** [quadro-demo.mp3](app/docs/quadro-demo.mp3), a 2½-minute tour of eight programs. Play

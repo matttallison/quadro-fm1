@@ -182,7 +182,7 @@ static const q_factory_t FACTORY[105] = {
                   QP_L_A, 0, QP_L_DEC, 100, QP_L_R, 36, QP_M_L, 112, QP_PH_S, 0, QP_DLY, 30, QP_DTIME, 1, QP_REV, 30, QP_M_L, 123, END}},
     {"FUSION LD", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0,
                    QP_L_WAVE, 3, QP_L_VCO2, 1, QP_L_DET, 6, QP_L_CUT, 50, QP_L_RES, 40, QP_L_ENV, 80, QP_L_PWM, 90,
-                   QP_L_A, 8, QP_L_DEC, 60, QP_L_R, 48, QP_L_POR1, 30, QP_L_POR2, 34, QP_L_VIB, 30, QP_L_VDEL, 90,
+                   QP_L_A, 8, QP_L_DEC, 60, QP_L_R, 48, QP_L_POR1, 30, QP_L_POR2, 34, QP_L_VIB, 14, QP_L_VDEL, 90,
                    QP_L_TOUCH, 1, QP_M_L, 116, QP_PH_S, 0, QP_DLY, 40, QP_DTIME, 4, QP_REV, 40, END}},
     {"NEW ROMANTC", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 1, QP_P_4, 1, QP_P_CUT, 56,
                      QP_P_RES, 30, QP_P_ENV, 70, QP_P_A, 0, QP_P_D, 64, QP_P_S, 60, QP_P_R, 50, QP_M_P, 120, QP_M_L, 0,

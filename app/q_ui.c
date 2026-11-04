@@ -35,7 +35,7 @@ static const uint16_t SEC_COL[SEC_N] = {RGB(236, 84, 60), RGB(244, 180, 52), RGB
 static const uint16_t SEC_DARK[SEC_N] = {RGB(70, 22, 16), RGB(72, 52, 10), RGB(20, 62, 34), RGB(16, 44, 82),
                                          RGB(56, 30, 74), RGB(60, 60, 64)};
 
-#define NPROG 80u
+#define NPROG 84u
 static q_patch_t progs[NPROG];                  /* the programs (flash: app.c) */
 
 static struct {
@@ -128,6 +128,7 @@ static void fmt_value(uint32_t id, int32_t v, char *b)
     case F_ONOFF: cat(b, v ? "ON" : "OFF"); break;
     case F_ENUM: cat(b, d->names[q_clampi(v, d->min, d->max) - d->min]); break;
     case F_SEMI: num(b, v, 1); break;
+    case F_STEP: if (v <= -25) cat(b, "REST"); else num(b, v, 1); break;
     case F_CENT: cat(num(b, v, id != QP_L_DET), "c"); break;
     case F_OCT: num(b, v, 1); break;
     case F_NOTE: cat(num(cat(b, NOTE_NAME[v % 12]), v / 12 - 1, 0), ""); break;
@@ -709,9 +710,20 @@ static void vz_arp(void)
 {
     uint16_t c = SEC_COL[SEC_LEAD];
     int32_t mode = P(QP_ARP), i, n = q.nheld, x = 6;
-    static const char *const M[5] = {"OFF: THE TOP KEY", "UP", "UP / DOWN", "DOWN", "RANDOM"};
-    cv_text_on(6, 4, &FONT_S, M[mode % 5], mode ? c : C_LBL, C_BG);
-    for (i = 0; i < n && i < 12; i++) {
+    static const char *const M[6] = {"OFF: THE TOP KEY", "UP", "UP / DOWN", "DOWN", "RANDOM", "STEP: LOWEST KEY = ROOT"};
+    cv_text_on(6, 4, &FONT_S, M[mode % 6], mode ? c : C_LBL, C_BG);
+    if (mode == 5) {                            /* the pattern: a bar a step (semitones), a dot for a REST, the step now lit */
+        int32_t len = P(QP_SQ_LEN), cur = q_mon.arp_step;
+        cv_rect(6, 41, 228, 1, C_PANEL);
+        for (i = 0; i < 16; i++) {
+            int32_t v = P(QP_SQ0 + i), x0 = 8 + i * 14, h = v * 18 / 24;
+            uint16_t col = i >= len ? C_PANEL : (i == cur && n ? c : C_TXT);
+            if (v <= -25) cv_rect(x0 + 3, 40, 6, 3, col);
+            else if (h >= 0) cv_rect(x0, 40 - h, 12, h + 3, col);
+            else cv_rect(x0, 41, 12, 2 - h, col);
+        }
+    }
+    for (i = 0; mode != 5 && i < n && i < 12; i++) {
         char b[8];
         int32_t nt = q.held[i];
         cat(num(cat(b, NOTE_NAME[nt % 12]), nt / 12 - 1, 0), "");
@@ -720,7 +732,7 @@ static void vz_arp(void)
         x += 38;
         if (x > 200) break;
     }
-    if (!n) cv_text_on(6, 38, &FONT_S, "HOLD KEYS (PLAY: HOLD)", C_DIMT, C_BG);
+    if (!n && mode != 5) cv_text_on(6, 38, &FONT_S, "HOLD KEYS (PLAY: HOLD)", C_DIMT, C_BG);
     {
         char b[32], *p;
         if (q_mon.bpm10 && P(QP_SYNC)) {
@@ -1038,7 +1050,16 @@ static void button(uint32_t b)
     case B_SEL: open_kind(ui.sec <= SEC_LEAD ? ui.sec : SEC_LEAD, PK_SCL); break;
     case B_FX: open_kind(SEC_PHAS, PK_EDIT); break;
     case B_GLO: open_kind(SEC_MIX, PK_EDIT); break;
-    case B_ARP: open_page(page_find(SEC_LEAD, PK_SCL, page_find(SEC_LEAD, PK_SCL, NPAGES))); break;
+    case B_ARP: {                               /* the sequencer's pages, round */
+        uint32_t i, nx = NPAGES, first = NPAGES, cur = !ui.home && !ui.setup ? ui.page : NPAGES;
+        for (i = 0; i < NPAGES; i++)
+            if (PAGES[i].vz == VZ_ARP) {
+                if (first == NPAGES) first = i;
+                if (nx == NPAGES && cur < NPAGES && i > cur && PAGES[cur].vz == VZ_ARP) nx = i;
+            }
+        open_page(nx != NPAGES ? nx : first);
+        break;
+    }
     case B_SEQ: set_section(ui.home ? 0u : (ui.sec + 1u) % 4u); break;
     case B_HOME: ui.home = 1; ui.setup = 0; ui.force = 1; break;
     case B_SAVE: ui.saving = 1; ui.save_to = ui.prog; ui.force = 1; break;

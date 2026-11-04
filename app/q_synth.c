@@ -239,7 +239,8 @@ static struct {
         uint8_t gate, stage, note1, note2;
         int32_t t1, t2, p1, p2, env, g, vib;    /* targets / pitches (1/16 st), Q24 env, gain, vibrato ramp Q15 */
         uint32_t ph1, ph2, trph, arpph, subph;
-        uint8_t arpi, arpup, trill_hi;
+        uint8_t arpi, arpup, trill_hi, odd, cut;
+        uint32_t stepn, steplen;                /* blocks since the step began, the last step's length in blocks (the gate) */
         int32_t z[4];
     } l;
     uint32_t lfo_ph, lfo_tri;                   /* the LFO, the phase shifter's sweep */
@@ -870,7 +871,7 @@ static __attribute__((noinline)) void q_lead(void)
     newgate = n > 0;
     if (P(QP_ARP) && n) {                       /* the sequencer: the lead's keys in order, over 1..3 octaves */
         uint32_t step = Q_LFO_INC[72 + P(QP_TRSPD) * 55 / 127];
-        int32_t k, j, sorted[Q_NHELD], mode = P(QP_ARP), len = n * qclamp(P(QP_ARP_OCT), 1, 3), idx;
+        int32_t k, j, sorted[Q_NHELD], mode = P(QP_ARP), len = mode == 5 ? qclamp(P(QP_SQ_LEN), 1, 16) : n * qclamp(P(QP_ARP_OCT), 1, 3), idx, rest = 0, cut = 0;
         for (k = 0; k < n; k++) sorted[k] = notes[k];
         for (k = 1; k < n; k++)                 /* (insertion sort: a handful) */
             for (j = k; j > 0 && sorted[j - 1] > sorted[j]; j--) { int32_t t = sorted[j]; sorted[j] = sorted[j - 1]; sorted[j - 1] = t; }
@@ -878,17 +879,26 @@ static __attribute__((noinline)) void q_lead(void)
             q.l.arpi = (uint8_t)(mode == 3 ? len - 1 : 0);
             q.l.arpup = 1;
             q.l.arpph = 0;
+            q.l.stepn = 0, q.l.steplen = 0, q.l.odd = 0;
             retrig = 1;
         }
         int sync = q.clk_run && P(QP_SYNC), adv;
         if (sync) {
             adv = q_clock_step(&q.clk_used, Q_SYNC_DIV[qclamp(P(QP_SYNC), 0, 6)]);
         } else {
-            q.l.arpph += step;
-            adv = q.l.arpph < step;
+            uint32_t sw = (uint32_t)P(QP_SQ_SW), inc = step;       /* swing: a pair's first step long, its second short */
+            if (sw)
+                inc = ((step >> 7) * 100u / (q.l.odd ? 100u - sw : 100u + sw)) << 7;
+            q.l.arpph += inc;
+            adv = q.l.arpph < inc;
         }
+        q.l.stepn++;
         if (adv) {                              /* the next step */
+            q.l.steplen = q.l.stepn;
+            q.l.stepn = 0;
+            q.l.odd ^= 1u;
             switch (mode) {
+            case 5: q.l.arpi = (uint8_t)((q.l.arpi + 1) % len); break;                       /* STEP */
             case 1: q.l.arpi = (uint8_t)((q.l.arpi + 1) % len); break;                       /* UP */
             case 3: q.l.arpi = (uint8_t)(q.l.arpi ? q.l.arpi - 1 : len - 1); break;          /* DOWN */
             case 4: {                                                                         /* RANDOM (not twice) */
@@ -909,7 +919,22 @@ static __attribute__((noinline)) void q_lead(void)
         }
         if (q.l.arpi >= len) q.l.arpi = 0;
         idx = q.l.arpi;
-        lo = hi = sorted[idx % n] + 12 * (idx / n);
+        if (mode == 5) {                        /* the pattern: semitones over the lowest key; REST is silent */
+            int32_t sv = P(QP_SQ0 + idx);
+            if (sv <= -25) {
+                rest = 1;
+                retrig = 0;
+                lo = q.l.gate ? q.l.note1 : sorted[0];
+                hi = q.l.gate ? q.l.note2 : sorted[0];
+            } else {
+                lo = hi = qclamp(sorted[0] + sv, 0, 127);
+            }
+        } else {
+            lo = hi = sorted[idx % n] + 12 * (idx / n);
+        }
+        if (q.l.steplen > 8u && q.l.stepn * 100u >= q.l.steplen * (uint32_t)qclamp(P(QP_SQ_GATE), 5, 100))
+            cut = 1;                            /* the gate: the step's note ends early */
+        if (rest || cut) q.l.cut = 1; else q.l.cut = 0;
         q_mon.arp_step = (uint8_t)idx;
     }
     if (newgate) {
@@ -931,7 +956,9 @@ static __attribute__((noinline)) void q_lead(void)
     q.l.gate = (uint8_t)newgate;
     if (retrig)
         q.l.stage = 1;
-    if (!q.l.gate && q.l.stage && q.l.stage < 5u)
+    if (!(P(QP_ARP) && n))
+        q.l.cut = 0;
+    if ((!q.l.gate || q.l.cut) && q.l.stage && q.l.stage < 5u)
         q.l.stage = 5;
     {   /* ADS/ASR: 1 attack, 2 the preset decay to DECAY's level, 3 the second attack, 4 full, 5 release;
          * SUS LOW: 2 decays (DECAY the time) to 20 % and stays */
@@ -1222,7 +1249,7 @@ static void q_block(int32_t *out)
     q_ensemble(sl, sr);
     for (i = 0; i < Q_BLK; i++) {
         int32_t b = q_bass_lift(qm15(q.bbus[i], gb)), s_l = qm15(sl[i], gs), s_r = qm15(sr[i], gs);
-        int32_t p = qm15(q.pbus[i], gp), ld = qm15(q.lbus[i], gl) * 5 / 2, a;
+        int32_t p = qm15(q.pbus[i], gp) * 2, ld = qm15(q.lbus[i], gl) * 5 / 2, a;
         a = b < 0 ? -b : b; if ((uint32_t)a > pk[0]) pk[0] = (uint32_t)a;
         a = s_l < 0 ? -s_l : s_l; if ((uint32_t)a > pk[1]) pk[1] = (uint32_t)a;
         a = p < 0 ? -p : p; if ((uint32_t)a > pk[2]) pk[2] = (uint32_t)a;

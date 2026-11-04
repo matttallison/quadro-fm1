@@ -89,6 +89,26 @@ static double beat_depth(int w0, int w1)          /* the short-term level's swin
     return (mx - mn) / (sum / cnt + 1e-9);
 }
 
+
+/* the lead's STEP sequencer: what notes sounded (a bit mask of 60+0..24), how many blocks were silent, over 3 s */
+static void seq_run(const int *kv, int *notes, int *quiet, int *total)
+{
+    int k, blocks = 3 * FS / Q_BLK;
+    only = "L";
+    patch(kv);
+    *notes = *quiet = *total = 0;
+    q_post(QE_ON, 60);
+    for (k = 0; k < blocks; k++) {
+        int32_t o[2 * Q_BLK];
+        memset(o, 0, sizeof o);
+        q_block(o);
+        if (k < 20) continue;
+        (*total)++;
+        if (q_mon.lead_env > 1500 && q_mon.lead_note >= 60 && q_mon.lead_note <= 84) *notes |= 1 << (q_mon.lead_note - 60);
+        if (q_mon.lead_env < 300) (*quiet)++;
+    }
+}
+
 int main(void)
 {
     static const char *WN[5] = {"SAW", "SQR", "PULSE", "TRI", "SINE"};
@@ -303,6 +323,29 @@ int main(void)
         patch(off); render(53); a = beat_depth(FS / 2, N);
         patch(on); render(53); b = beat_depth(FS / 2, N);
         check("bass LFO > VCF wobbles", b > 0.15 && a < 0.06, "swing %.2f (off %.2f)", b, a, 0);
+    }
+    printf("the step sequencer\n");
+    {
+        int base[] = {QP_L_WAVE, 0, QP_L_VCO2, 0, QP_L_A, 0, QP_L_DEC, 127, QP_L_R, 20, QP_ARP, 5, QP_TRSPD, 110, QP_SQ_LEN, 4,
+                      QP_SQ0, 0, QP_SQ1, 12, QP_SQ2, -25, QP_SQ3, 7, QP_SQ_GATE, 100, QP_SPLIT, 48, -1};
+        int n, qt, tot, n2, qt2, tot2;
+        seq_run(base, &n, &qt, &tot);
+        check("STEP plays the pattern over the key", n == (1 | 1 << 12 | 1 << 7), "notes mask %.0f (want 4225)", n, 0, 0);
+        check("a REST is silent", qt > tot / 8, "silent %.0f of %.0f", qt, tot, 0);
+        {
+            int len2[sizeof base / sizeof base[0]];
+            memcpy(len2, base, sizeof base);
+            len2[15] = 2;                                           /* QP_SQ_LEN's value */
+            seq_run(len2, &n2, &qt2, &tot2);
+            check("LENGTH 2 plays two steps", n2 == (1 | 1 << 12), "notes mask %.0f (want 4097)", n2, 0, 0);
+        }
+        {
+            int g[sizeof base / sizeof base[0]];
+            memcpy(g, base, sizeof base);
+            g[25] = 30;                                             /* QP_SQ_GATE's value */
+            seq_run(g, &n2, &qt2, &tot2);
+            check("GATE 30 % cuts the steps short", qt2 > qt + tot / 8, "silent %.0f (100 %%: %.0f) of %.0f", qt2, qt, tot);
+        }
     }
     printf("%s\n", bad ? "QUADRO features: FAIL" : "QUADRO features: all ok");
     return bad != 0;

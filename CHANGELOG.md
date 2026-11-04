@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2
+
+- A step sequencer: SEQ = STEP plays a 16-step pattern (semitones from the lowest lead key, or REST) with LENGTH, GATE
+  and SWING. GATE works in every sequencer mode. Press ARP to step through its pages; the screen draws the pattern.
+- 4 new programs (81-84), 84 in all.
+- The factory programs rechecked for loudness: the poly is about 6 dB louder, and the quiet programs (pads, plucks, wah)
+  were brought up to match the rest.
+- Key velocity out over MIDI is flatter (72-127), and TOUCH needs a firmer press at every sensitivity.
+
 ## 1.1
 
 Sound design from scratch.

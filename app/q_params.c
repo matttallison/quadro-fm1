@@ -31,6 +31,10 @@ enum {
     QP_P_WAVE, QP_P_PW, QP_P_PWM, QP_P_DET, QP_P_VIB, QP_P_FMODE, QP_P_16,
     QP_L_W2, QP_L_SUB, QP_L_NOISE, QP_L_SYNC, QP_L_FMODE, QP_L_DRIVE, QP_L_KBD,
     QP_LFO_W,
+    /* 1.2: the step sequencer: the pattern (semitones from the lowest lead key, REST), its length, the gate */
+    QP_SQ_LEN, QP_SQ_GATE, QP_SQ_SW,
+    QP_SQ0, QP_SQ1, QP_SQ2, QP_SQ3, QP_SQ4, QP_SQ5, QP_SQ6, QP_SQ7,
+    QP_SQ8, QP_SQ9, QP_SQ10, QP_SQ11, QP_SQ12, QP_SQ13, QP_SQ14, QP_SQ15,
     QP_N
 };
 #define QD_NAME 12
@@ -40,7 +44,7 @@ typedef struct {
     char name[QD_NAME];
 } q_patch_t;
 
-enum { F_LVL, F_ONOFF, F_ENUM, F_SEMI, F_CENT, F_TIME, F_HZ, F_NOTE, F_OCT, F_RATE, F_PCT, F_INT };
+enum { F_LVL, F_ONOFF, F_ENUM, F_SEMI, F_CENT, F_TIME, F_HZ, F_NOTE, F_OCT, F_RATE, F_PCT, F_INT, F_STEP };
 typedef struct {
     const char *label;                          /* at most 5 characters: a knob column */
     const char *long_label;                     /* the page's big line when it is turned */
@@ -55,7 +59,7 @@ static const char *const N_WAVE[] = {"SAW", "SQR", "PULSE", "TRI", "SINE"};
 static const char *const N_BWAVE[] = {"SQR", "SAW", "PULSE", "TRI", "SINE"};   /* (SQR first: the bass of 1.0) */
 static const char *const N_FMODE[] = {"LP24", "LP12", "BP", "HP"};
 static const char *const N_LFOW[] = {"SINE", "TRI", "SAW", "SQR", "S&H"};
-static const char *const N_ARP[] = {"OFF", "UP", "UP/DN", "DOWN", "RAND"};
+static const char *const N_ARP[] = {"OFF", "UP", "UP/DN", "DOWN", "RAND", "STEP"};
 static const char *const N_TRIG[] = {"SINGL", "MULTI"};
 static const char *const N_PHMOD[] = {"SWEEP", "S&H", "ENV", "LFO"};
 static const char *const N_DTIME[] = {"1/4", "1/8", "1/16", "1/32", "8T", "16T"};
@@ -117,7 +121,7 @@ static const q_desc_t QD[QP_N] = {
     [QP_L_PWM] = {"PWM", "ENV > PULSE WIDTH", 0, 127, 64, F_PCT, 0},
     [QP_LFO] = {"LFO", "LFO SPEED", 0, 127, 60, F_RATE, 0},
     [QP_TRSPD] = {"SPEED", "TRILL / SEQ SPEED", 0, 127, 50, F_RATE, 0},
-    [QP_ARP] = {"SEQ", "SEQUENCER", 0, 4, 0, F_ENUM, N_ARP},
+    [QP_ARP] = {"SEQ", "SEQUENCER", 0, 5, 0, F_ENUM, N_ARP},
     [QP_PH_B] = {"BASS", "PHASER: BASS IN", 0, 1, 0, F_ONOFF, 0},
     [QP_PH_S] = {"STRG", "PHASER: STRINGS IN", 0, 1, 1, F_ONOFF, 0},
     [QP_PH_P] = {"POLY", "PHASER: POLY IN", 0, 1, 0, F_ONOFF, 0},
@@ -163,6 +167,25 @@ static const q_desc_t QD[QP_N] = {
     [QP_L_FMODE] = {"TYPE", "LEAD FILTER TYPE", 0, 3, 0, F_ENUM, N_FMODE},
     [QP_L_DRIVE] = {"DRIVE", "LEAD FILTER DRIVE", 0, 127, 0, F_PCT, 0},
     [QP_L_KBD] = {"KBD", "LEAD KEY TRACK", 0, 127, 32, F_PCT, 0},
+    [QP_SQ_LEN] = {"LENGTH", "STEP SEQUENCER LENGTH", 1, 16, 8, F_INT, 0},
+    [QP_SQ_GATE] = {"GATE", "SEQUENCER GATE LENGTH", 5, 100, 100, F_INT, 0},
+    [QP_SQ_SW] = {"SWING", "SEQUENCER SWING", 0, 50, 0, F_INT, 0},
+    [QP_SQ0] = {"STEP 1", "SEQUENCER STEP 1", -25, 24, 0, F_STEP, 0},
+    [QP_SQ1] = {"STEP 2", "SEQUENCER STEP 2", -25, 24, 0, F_STEP, 0},
+    [QP_SQ2] = {"STEP 3", "SEQUENCER STEP 3", -25, 24, 12, F_STEP, 0},
+    [QP_SQ3] = {"STEP 4", "SEQUENCER STEP 4", -25, 24, 0, F_STEP, 0},
+    [QP_SQ4] = {"STEP 5", "SEQUENCER STEP 5", -25, 24, 3, F_STEP, 0},
+    [QP_SQ5] = {"STEP 6", "SEQUENCER STEP 6", -25, 24, 0, F_STEP, 0},
+    [QP_SQ6] = {"STEP 7", "SEQUENCER STEP 7", -25, 24, 7, F_STEP, 0},
+    [QP_SQ7] = {"STEP 8", "SEQUENCER STEP 8", -25, 24, 10, F_STEP, 0},
+    [QP_SQ8] = {"STEP 9", "SEQUENCER STEP 9", -25, 24, 0, F_STEP, 0},
+    [QP_SQ9] = {"STEP 10", "SEQUENCER STEP 10", -25, 24, 12, F_STEP, 0},
+    [QP_SQ10] = {"STEP 11", "SEQUENCER STEP 11", -25, 24, 0, F_STEP, 0},
+    [QP_SQ11] = {"STEP 12", "SEQUENCER STEP 12", -25, 24, 7, F_STEP, 0},
+    [QP_SQ12] = {"STEP 13", "SEQUENCER STEP 13", -25, 24, 5, F_STEP, 0},
+    [QP_SQ13] = {"STEP 14", "SEQUENCER STEP 14", -25, 24, 0, F_STEP, 0},
+    [QP_SQ14] = {"STEP 15", "SEQUENCER STEP 15", -25, 24, 10, F_STEP, 0},
+    [QP_SQ15] = {"STEP 16", "SEQUENCER STEP 16", -25, 24, -12, F_STEP, 0},
     [QP_LFO_W] = {"SHAPE", "LFO WAVEFORM", 0, 4, 0, F_ENUM, N_LFOW},
 };
 
@@ -212,6 +235,11 @@ static const q_page_t PAGES[] = {
     {SEC_LEAD, PK_LFO, VZ_MOD, "LFO", {QP_LFO, QP_LFO_W, _, _}},
     {SEC_LEAD, PK_SCL, VZ_KEYS, "PLAY", {QP_L_2V, QP_L_POR1, QP_L_POR2, QP_L_TRIG}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "SEQUENCER", {QP_ARP, QP_TRSPD, QP_SYNC, QP_ARP_OCT}},
+    {SEC_LEAD, PK_SCL, VZ_ARP, "GATE", {QP_SQ_LEN, QP_SQ_GATE, QP_SQ_SW, _}},
+    {SEC_LEAD, PK_SCL, VZ_ARP, "STEPS 1-4", {QP_SQ0, QP_SQ1, QP_SQ2, QP_SQ3}},
+    {SEC_LEAD, PK_SCL, VZ_ARP, "STEPS 5-8", {QP_SQ4, QP_SQ5, QP_SQ6, QP_SQ7}},
+    {SEC_LEAD, PK_SCL, VZ_ARP, "STEPS 9-12", {QP_SQ8, QP_SQ9, QP_SQ10, QP_SQ11}},
+    {SEC_LEAD, PK_SCL, VZ_ARP, "STEPS 13-16", {QP_SQ12, QP_SQ13, QP_SQ14, QP_SQ15}},
     {SEC_PHAS, PK_EDIT, VZ_PH_IN, "INPUTS", {QP_PH_B, QP_PH_S, QP_PH_P, QP_PH_L}},
     {SEC_PHAS, PK_EDIT, VZ_PH_SWEEP, "SWEEP", {QP_PH_SPD, QP_PH_DEP, QP_PH_RES, QP_PH_MOD}},
     {SEC_MIX, PK_EDIT, VZ_MIXER, "OUTPUT MIXER", {QP_M_B, QP_M_S, QP_M_P, QP_M_L}},

@@ -30,11 +30,11 @@ reproduce 40–90 Hz. Set BASS OCTAVE to −1 for the original register on headp
 | **ENV** | The section's envelope |
 | **LFO** | The section's modulation (lead: vibrato, trill, touch) |
 | **SEL** | The keyboard: split, chord, chord bass, lead octave; for the lead, glide and trigger |
-| **ARP** | The lead's sequencer |
+| **ARP** | The lead's sequencer: mode, speed and sync, then GATE and the 16 steps (press again for the next page) |
 | **FX** | The phase shifter: inputs, then sweep |
 | **GLO** | The output mixer, then the room (reverb, delay, delay time) |
 | **HOME** | The four sections at a glance, with knobs 1–4 as their levels. Hold it for SETUP. |
-| **PRESET** knob | Loads a program, 1–80 ([the list](https://github.com/matttallison/quadro-fm1/blob/main/app/docs/PRESETS.md)) |
+| **PRESET** knob | Loads a program, 1–84 ([the list](https://github.com/matttallison/quadro-fm1/blob/main/app/docs/PRESETS.md)) |
 | **SAVE** | Saves the current sound: PRESET picks the slot, SAVE again writes, any other button cancels |
 | **PLAY** | HOLD: the keys stay down, like the original's HOLD footswitch |
 | **REC** | SUSTAIN: the longest release |
@@ -86,10 +86,17 @@ Programs 69–80 are examples of each.
 - **Sequencer.** The lead runs UP, UP/DN, DOWN or RAND over the keys held, across 1–3 octaves. PLAY (HOLD) keeps
   it running hands-free. Without a clock it runs at SPEED; with MIDI clock it locks to SYNC (1/4 to 1/32, with
   triplets).
+- **Step sequencer.** SEQ = STEP plays a pattern of up to 16 steps over the lowest key you hold on the lead: each
+  step is a semitone offset (−24 to +24) or REST. Press ARP to step through its pages: SEQUENCER (mode, speed, sync),
+  GATE (LENGTH 1–16, GATE 5–100 % of each step, SWING), then STEPS 1–4 … 13–16. GATE works in every sequencer mode;
+  SWING runs when the sequencer is free-running (not locked to a clock). The screen draws the pattern, with the step
+  playing lit. Programs 81–84 are examples.
 
 ![CHORD+BASS: one key, a chord and its bass](img/chord.png)
 
 ![The sequencer over a held chord](img/sequencer.png)
+
+![The step pattern](img/steps.png)
 
 ## SETUP
 
@@ -98,7 +105,7 @@ Hold HOME. Press EDIT to switch between the two pages. Press HOME to leave.
 | Page | Knob 1 | Knob 2 | Knob 3 | Knob 4 |
 | --- | --- | --- | --- | --- |
 | 1 | MIDI channel (OMNI, 1–16) | Bluetooth MIDI on/off | TOUCH: 0 off, 1 (least) – 6 (most sensitive) | CLOCK OUT on/off |
-| 2 | TEMPO (internal clock) | RUN: START / STOP | — | FACT: turn twice to restore the 80 factory programs |
+| 2 | TEMPO (internal clock) | RUN: START / STOP | — | FACT: turn twice to restore the 84 factory programs |
 
 ![SETUP, page 1](img/setup.png)
 
@@ -114,7 +121,7 @@ QUADRO takes MIDI over USB, Bluetooth and the TRS jack, on the SETUP channel (OM
 | CC 64 | Sustain |
 | CC 74 | The current section's filter cutoff |
 | Channel pressure | The lead's TOUCH |
-| Program change 0–79 | Programs 1–80 |
+| Program change 0–83 | Programs 1–84 |
 | Clock, start, stop, continue | The sequencer, trill and delay follow it. The header shows the tempo. |
 
 **Out:** the keys you play go out as notes with velocity, over USB and Bluetooth. With CLOCK OUT on, QUADRO sends
@@ -128,4 +135,4 @@ SETUP > BLE turns Bluetooth off, and the setting is kept.
 Programs and settings are kept in the FM-1's flash. SAVE stores the current sound in a program slot. MIDI channel,
 Bluetooth, touch, clock and tempo are saved with them.
 
-When you update from a 0.x test build, your settings are kept and the 80 factory programs replace the old ones.
+When you update from a 0.x test build, your settings are kept and the 84 factory programs replace the old ones.

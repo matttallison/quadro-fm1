@@ -48,6 +48,7 @@ static uint32_t midi_chan(void) { return ui.midi_ch ? ui.midi_ch - 1u : 0u; }
 static void q_midi_key(uint32_t note, uint32_t vel, int on)
 {
     uint32_t st = (on ? 0x90u : 0x80u) | midi_chan();
+    if (on) vel = 72u + (vel & 127u) * 55u / 127u;      /* the keys' velocity, flattened: 72..127 (the sensor is very sensitive) */
     plat_midi_send((st >> 4) | st << 8 | (note & 127u) << 16 | (on ? (vel ? vel : 1u) & 127u : 0u) << 24, TO_USB | TO_BLE);
 }
 
@@ -265,7 +266,7 @@ static void input(void)
     }
     {   /* SETUP's TOUCH: 0 off; 1 (least) .. 6 (most). A dead zone first (a key played normally does nothing), then
          * the rest of the travel spread to 0..127 */
-        static const uint8_t DEAD[7] = {127, 84, 70, 56, 44, 32, 20};
+        static const uint8_t DEAD[7] = {127, 104, 96, 88, 80, 72, 62};
         uint32_t dz = DEAD[ui.tsens % 7u];
         lead_p = lead_p > dz ? (lead_p - dz) * 127u / (127u - dz) : 0u;
     }

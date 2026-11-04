@@ -16,7 +16,7 @@ each knob does as you turn it.
 - **A sequencer** over the keys you hold (up, up/down, down, random, 1–3 octaves). It syncs to MIDI clock and can
   send clock too.
 - **Touch:** the FM-1's pressure-sensing keys bend the lead or open its filter, with adjustable sensitivity.
-- **80 programs:** the classics, what only the Quadra could do, paraphonic, sequences, chords and one-finger band
+- **84 programs:** the classics, what only the Quadra could do, paraphonic, sequences, chords and one-finger band
   sounds. See [the program list](app/docs/PRESETS.md).
 - **MIDI** in and out over USB, Bluetooth and TRS.
 - Uses both of the FM-1's cores: the strings and poly run on the second one.
@@ -47,6 +47,7 @@ Read [the manual](app/docs/MANUAL.md). In short: **ALGO** picks the section, **E
 | ![Home](app/docs/img/home.png) | ![Lead filter](app/docs/img/edit-lead.png) | ![Phaser inputs](app/docs/img/phaser.png) |
 | ![Lead envelope](app/docs/img/envelope.png) | ![Mixer](app/docs/img/mixer.png) | ![SETUP](app/docs/img/setup.png) |
 | ![Bass oscillator](app/docs/img/osc-bass.png) | ![Bass filter type](app/docs/img/filter-bass.png) | ![Lead oscillator mix](app/docs/img/mix-lead.png) |
+| ![Step sequencer](app/docs/img/steps.png) | | |
 
 ## Build
 
@@ -54,7 +55,7 @@ Read [the manual](app/docs/MANUAL.md). In short: **ALGO** picks the section, **E
     cd quadro-fm1
     ./build.sh                    # app/build/quadro.fwsc
     ./build.sh --release 1.0      # app/build/quadro-1.0.fwsc
-    sh tests/run_tests.sh         # the sound of all 80 programs, then the host simulator
+    sh tests/run_tests.sh         # the sound of all 84 programs, then the host simulator
 
 The firmware build needs the JieLi toolchain (`JIELI_TOOLCHAIN`) and the AC79 SDK (`AC79_SDK`). See
 [fm1-base's README](https://github.com/charlesvestal/fm1-base). The tests only need a C compiler and Python 3.
@@ -68,7 +69,7 @@ FM-1 builder).
 | `app/q_synth.c` | The sound: the four sections, ensemble, phaser, mixer |
 | `app/q_fx.c` | The reverb and the ping-pong delay |
 | `app/q_params.c` | The patch: every parameter, its range, its page |
-| `app/q_presets.c` | The 80 factory programs |
+| `app/q_presets.c` | The 84 factory programs |
 | `app/q_ui.c` | The panel and the screen |
 | `app/app.c` | The glue to the platform: keys, MIDI, clock, saving |
 | `tests/` | The audio tests and the test runner |

@@ -48,6 +48,7 @@ enum {
     QP_L_UNI,                                   /* the lead's UNISON: a detuned copy of each oscillator, 0 off */
     QP_SQT0, QP_SQT1, QP_SQT2, QP_SQT3, QP_SQT4, QP_SQT5, QP_SQT6, QP_SQT7,   /* the step sequencer: each step's - / ACCENT / TIE */
     QP_SQT8, QP_SQT9, QP_SQT10, QP_SQT11, QP_SQT12, QP_SQT13, QP_SQT14, QP_SQT15,
+    QP_PH_ADD,
     QP_N
 };
 #define QD_NAME 12
@@ -74,6 +75,7 @@ static const char *const N_FMODE[] = {"LP24", "LP12", "BP", "HP"};
 static const char *const N_LFOW[] = {"SINE", "TRI", "SAW", "SQR", "S&H"};
 static const char *const N_ARP[] = {"OFF", "UP", "UP/DN", "DOWN", "RAND", "STEP", "PEDAL", "THUMB", "CONV", "DIVRG", "PLAYED", "SKIP"};
 static const char *const N_TRIG[] = {"SINGL", "MULTI"};
+static const char *const N_PHADD[] = {"-", "S&H", "ENV", "S&H+ENV"};
 static const char *const N_PHMOD[] = {"SWEEP", "S&H", "ENV", "LFO"};
 static const char *const N_DTIME[] = {"1/4", "1/8", "1/16", "1/32", "8T", "16T", "1/8.", "1/16.", "4T", "32T"};
 static const char *const N_TIE[] = {"-", "ACCENT", "TIE"};
@@ -233,6 +235,7 @@ static const q_desc_t QD[QP_N] = {
     [QP_MIDI_LOCK] = {"MIDI", "SCALE LOCK ON MIDI IN", 0, 1, 0, F_ONOFF, 0},
     [QP_ARP_LATCH] = {"LATCH", "SEQUENCER LATCH", 0, 1, 0, F_ONOFF, 0},
     [QP_L_UNI] = {"UNISON", "LEAD UNISON DETUNE", 0, 127, 0, F_PCT, 0},
+    [QP_PH_ADD] = {"ADD", "PHASER: ALSO MODULATE WITH", 0, 3, 0, F_ENUM, N_PHADD},
     [QP_SQT0] = {"ACC 1", "SEQUENCER STEP 1 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
     [QP_SQT1] = {"ACC 2", "SEQUENCER STEP 2 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
     [QP_SQT2] = {"ACC 3", "SEQUENCER STEP 3 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
@@ -313,6 +316,7 @@ static const q_page_t PAGES[] = {
     {SEC_LEAD, PK_SCL, VZ_ARP, "ACCENTS 13-16", {QP_SQT12, QP_SQT13, QP_SQT14, QP_SQT15}},
     {SEC_PHAS, PK_EDIT, VZ_PH_IN, "INPUTS", {QP_PH_B, QP_PH_S, QP_PH_P, QP_PH_L}},
     {SEC_PHAS, PK_EDIT, VZ_PH_SWEEP, "SWEEP", {QP_PH_SPD, QP_PH_DEP, QP_PH_RES, QP_PH_MOD}},
+    {SEC_PHAS, PK_EDIT, VZ_PH_SWEEP, "MOD ADD", {QP_PH_ADD, QP_PH_SPD, QP_PH_DEP, QP_PH_RES}},
     {SEC_MIX, PK_EDIT, VZ_MIXER, "OUTPUT MIXER", {QP_M_B, QP_M_S, QP_M_P, QP_M_L}},
     {SEC_MIX, PK_EDIT, VZ_FX, "ROOM", {QP_REV, QP_DLY, QP_DTIME, QP_SPLIT}},
     {SEC_MIX, PK_EDIT, VZ_FX, "REVERB", {QP_REV, QP_REV_DEC, QP_REV_DAMP, QP_REV_SIZE}},

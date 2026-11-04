@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6
+
+- Phaser MOD ADD page: S&H and ENV can stack on top of the chosen sweep source, as on the original.
+
 ## 1.5
 
 - The ARP Quadra's own sixteen factory voices (programs 90-105), read from the patch sheets in its owner's manual.

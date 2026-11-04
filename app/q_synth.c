@@ -1190,24 +1190,24 @@ static __attribute__((noinline)) void q_phaser(const int32_t *in, int32_t *l, in
 {
     int32_t i, k, pos, a0 = q.pa, a1, da, fb = P(QP_PH_RES) * 210, dep = P(QP_PH_DEP), mod = P(QP_PH_MOD);
     uint32_t spd = Q_LFO_INC[P(QP_PH_SPD) * 94 / 127];
-    switch (mod) {                              /* where the sweep is, 0..32767 */
-    case 1:                                     /* S&H: a new random level at the sweep speed, slewed a little */
+    int32_t add = P(QP_PH_ADD), n = 1, sum;
+    if (mod == 1 || (add & 1)) {                /* S&H: a new random level at the sweep speed, slewed a little */
         q.sh_ph += spd;
         if (q.sh_ph < spd) q.sh_tgt = (int32_t)(q_rand(&q.seed) >> 17);
         q.sh += (q.sh_tgt - q.sh) >> 2;
-        pos = q.sh;
-        break;
-    case 2:                                     /* ENV: the strings / poly envelope opens it */
-        pos = q.ph_env;
-        break;
-    case 3:                                     /* LFO */
-        pos = (q.lfo_v + 32768) >> 1;
-        break;
+    }
+    switch (mod) {                              /* where the sweep is, 0..32767 */
+    case 1: sum = q.sh; break;
+    case 2: sum = q.ph_env; break;              /* ENV: the strings / poly envelope opens it */
+    case 3: sum = (q.lfo_v + 32768) >> 1; break;
     default:                                    /* SWEEP: its own triangle */
         q.lfo_tri += spd;
-        pos = (int32_t)((q.lfo_tri >> 31 ? ~q.lfo_tri : q.lfo_tri) >> 15);
+        sum = (int32_t)((q.lfo_tri >> 31 ? ~q.lfo_tri : q.lfo_tri) >> 15);
         break;
     }
+    if (add & 1 && mod != 1) sum += q.sh, n++;  /* the original lets S/H and ENV stack with the sweep */
+    if (add & 2 && mod != 2) sum += q.ph_env, n++;
+    pos = sum / n;
     pos = qclamp(pos, 0, 32767);
     q_mon.ph_pos = (uint16_t)pos;
     {   /* the coefficient: the middle of the 64 steps, +- DEPTH */

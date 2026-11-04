@@ -37,6 +37,7 @@ static const uint16_t SEC_DARK[SEC_N] = {RGB(70, 22, 16), RGB(72, 52, 10), RGB(2
 
 #define NPROG 105u
 static q_patch_t progs[NPROG];                  /* the programs (flash: app.c) */
+static uint8_t iw_state, iw_a;                  /* TOOLS > INTERVAL WRITE: 0 off, 1 waiting for the first key, 2 for the second */
 static uint8_t cmp_on;                          /* TOOLS > COMPARE: the stored program is playing, the edit is kept in cmp_edit */
 static q_patch_t cmp_edit;
 
@@ -295,6 +296,7 @@ static void knob(uint32_t n, int32_t d)
                 ui.pop_param = -1;
             }
             if (n == 2) { sound_random(); cmp_on = 0; ui.edited = 1; }
+            if (n == 3) { iw_state = 1; ui_say("INTERVAL: PLAY 2 KEYS"); }
         }
         ui.store_req = 1;
         ui.force = 1;
@@ -1043,10 +1045,10 @@ static void draw_knobs(void)
         char v[16];
         if (n) cv_rect(x, 6, 1, 54, C_RULE);
         if (ui.setup) {
-            static const char *const L[4][4] = {{"MIDI", "BLE", "TOUCH", "CLOCK"}, {"TEMPO", "RUN", "", "FACT"}, {"BASS", "STRG", "POLY", "LEAD"}, {"TAP", "COMP", "RAND", ""}};
+            static const char *const L[4][4] = {{"MIDI", "BLE", "TOUCH", "CLOCK"}, {"TEMPO", "RUN", "", "FACT"}, {"BASS", "STRG", "POLY", "LEAD"}, {"TAP", "COMP", "RAND", "INTVL"}};
             text_c(cx, 6, L[ui.setup_page & 3u][n], C_LBL, C_BG, 0);
             if (ui.setup_page == 2u) { if (ui.sch[n]) num(v, ui.sch[n], 0); else cat(v, "-"); text_c(cx, 26, v, C_TXT, C_BG, 1); continue; }
-            if (ui.setup_page == 3u) { if (n == 0) { char *p = num(v, ui.tempo10 / 10, 0); *p = 0; text_c(cx, 26, v, C_TXT, C_BG, 1); } if (n == 1) text_c(cx, 26, cmp_on ? "STORED" : "EDIT", C_TXT, C_BG, 1); if (n == 2) text_c(cx, 26, "-->", C_TXT, C_BG, 1); continue; }
+            if (ui.setup_page == 3u) { if (n == 0) { char *p = num(v, ui.tempo10 / 10, 0); *p = 0; text_c(cx, 26, v, C_TXT, C_BG, 1); } if (n == 1) text_c(cx, 26, cmp_on ? "STORED" : "EDIT", C_TXT, C_BG, 1); if (n == 2) text_c(cx, 26, "-->", C_TXT, C_BG, 1); if (n == 3) text_c(cx, 26, iw_state ? "KEYS" : "-->", C_TXT, C_BG, 1); continue; }
             if (ui.setup_page == 0u) {
                 if (n == 0) { if (ui.midi_ch) num(v, ui.midi_ch, 0); else cat(v, "OMNI"); text_c(cx, 26, v, C_TXT, C_BG, 1); }
                 if (n == 1) text_c(cx, 26, !FM1B_BLE ? "--" : ui.ble_off ? "OFF" : "ON", C_TXT, C_BG, 1);
@@ -1242,9 +1244,17 @@ static uint32_t scale_note(int32_t n)
 static uint32_t key_note(uint32_t k) { return scale_note(53 + ui.oct * 12 + (int32_t)k); }
 static void q_midi_key(uint32_t note, uint32_t vel, int on);   /* app.c: the key out over MIDI too */
 static uint8_t key_sent[NKEYS];                 /* the note each key sent (an octave change between down and up) */
-static void key_down_v(uint32_t k, uint32_t vel) { ui.keys |= 1u << k; key_sent[k] = (uint8_t)key_note(k); q_post(QE_ON, key_sent[k]); q_midi_key(key_sent[k], vel, 1); }
+static void key_down_v(uint32_t k, uint32_t vel)
+{
+    if (iw_state) {                             /* INTERVAL WRITE: the distance between two keys becomes VCO 2's interval */
+        uint32_t n = key_note(k);
+        if (iw_state == 1) { iw_a = (uint8_t)n; iw_state = 2; ui_say("NOW THE 2ND KEY"); }
+        else { qp.v[QP_L_INT] = (int8_t)q_clampi((int32_t)n - (int32_t)iw_a, -60, 60); qp.v[QP_L_VCO2] = 1; iw_state = 0; ui.edited = 1; ui.store_req = 1; ui_say("INTERVAL WRITTEN"); }
+        return;
+    }
+    ui.keys |= 1u << k; key_sent[k] = (uint8_t)key_note(k); q_post(QE_ON, key_sent[k]); q_midi_key(key_sent[k], vel, 1); }
 static void key_down(uint32_t k) { key_down_v(k, 100); }
-static void key_up(uint32_t k) { ui.keys &= ~(1u << k); q_post(QE_OFF, key_sent[k]); q_midi_key(key_sent[k], 0, 0); }
+static void key_up(uint32_t k) { if (!(ui.keys & (1u << k))) return; ui.keys &= ~(1u << k); q_post(QE_OFF, key_sent[k]); q_midi_key(key_sent[k], 0, 0); }
 
 /* the LEDs: the page's button lit, HOLD on PLAY, SUSTAIN on REC, the octave, the keys: the bass zone glows,
  * the keys sounding light */

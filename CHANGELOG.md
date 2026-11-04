@@ -3,6 +3,8 @@
 ## 1.6
 
 - Phaser MOD ADD page: S&H and ENV can stack on top of the chosen sweep source, as on the original.
+- INTERVAL WRITE (SETUP > TOOLS, knob 4): play two keys and their distance becomes VCO 2's interval (range now +-60 semitones, 10 octaves).
+- FLAT footswitch: MIDI CC 68 lowers the lead a semitone while held.
 
 ## 1.5
 

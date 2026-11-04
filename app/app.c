@@ -120,6 +120,7 @@ static void midi_in_isr(void)
         case 0xC0u: midi_prog = (int16_t)(d1 % NPROG); break;
         case 0xB0u:
             if (d1 == 1u) q.modw = (int32_t)d2;                                    /* the mod wheel: the lead's vibrato */
+            else if (d1 == 68u) q.flat = d2 >= 64u;                                /* the FLAT footswitch: the lead a semitone down */
             else if (d1 == 64u) { q.sustain = d2 >= 64u; midi_sus = q.sustain; }
             else if (d1 == 74u || d1 == 71u || d1 == 72u || d1 == 73u || d1 == 91u || d1 == 93u || d1 == 94u || (d1 >= 20u && d1 <= 23u)) midi_cc(d1, d2);
             else if (d1 == 120u || d1 == 123u) q_all_off();

@@ -1,6 +1,6 @@
 # QUADRO's programs
 
-89 factory programs. Turn PRESET to pick one; MIDI program change 0-88 picks 1-89. *Sections* are the parts that sound; *features* are the parts of QUADRO each one leans on. Every lead takes TOUCH (key pressure) as pitch bend unless it says TOUCH BRILL (pressure opens the filter).
+105 factory programs. Turn PRESET to pick one; MIDI program change 0-104 picks 1-105. *Sections* are the parts that sound; *features* are the parts of QUADRO each one leans on. Every lead takes TOUCH (key pressure) as pitch bend unless it says TOUCH BRILL (pressure opens the filter).
 
 ## 1-16: The first bank
 
@@ -180,6 +180,29 @@ New in 1.3: the PEDAL and CONV sequencer modes, and the MAJ9 and DOM9 chords.
 | --- | --- | --- | --- |
 | 89 | INIT | poly  | a plain saw to start a sound from |
 
+## 90-105: The Quadra's own sixteen
+
+The sixteen voices the ARP Quadra shipped with (the revised patch sheets in its owner's manual), read off the switches: which footages, which controls are variable, the phaser routing, the lead's waveforms. The sheets leave the sliders midway, so each variable control sits at 64 and each preset one at a fixed value; tune them to taste. The last column is the name on the sheet.
+
+| # | Program | Sections | The sheet's name |
+| --- | --- | --- | --- |
+| 90 | PERC GLOCK | bass strings poly lead | PERCUSSIVE GLOCKENSPIEL |
+| 91 | PHASED STR | bass strings lead | VOICES with PHASED STRINGS |
+| 92 | FAT BRASS CHOIR | bass poly lead | FAT BRASS CHOIR with BASS |
+| 93 | SAX BRASS | bass strings poly lead | SAX/BRASS SECTION |
+| 94 | PERC FUNK | poly lead | PERCUSSIVE FUNK |
+| 95 | PERC 2V BELLS | bass strings poly lead | PERCUSSIVE TWO-VOICE BELLS |
+| 96 | FUNK POWER BLAST | bass strings poly lead | FUNK POWER BLAST |
+| 97 | SCREECH BRASS | bass strings poly lead | SCREECH BRASS ORCHESTRA |
+| 98 | TOUCH ORCH | bass strings poly lead | TOUCH-SENSITIVE ORCHESTRA |
+| 99 | JAZZ ORGAN | bass poly lead | JAZZ ORGAN |
+| 100 | ETHERIALISM | bass strings poly lead | ETHERIALISM |
+| 101 | SPACIAL ENCOUNTERS | bass strings poly lead | SPACIAL ENCOUNTERS |
+| 102 | BASS PHASER | strings poly lead | BASS-TRIGGERED PHASER |
+| 103 | PSEUDO POLY | bass poly lead | PSEUDO-POLY |
+| 104 | HARPSI STR BRASS | bass strings poly lead | HARPSICHORD & STRINGS with LOW BRASS |
+| 105 | ORCH TRIANGLE | strings poly lead | ORCHESTRA with TRIANGLE |
+
 ## Your own
 
-Edit any program and press SAVE, pick the slot with PRESET, and SAVE again. SETUP > FACT puts all 89 back.
+Edit any program and press SAVE, pick the slot with PRESET, and SAVE again. SETUP > FACT puts all 105 back.

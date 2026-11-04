@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5
+
+- The ARP Quadra's own sixteen factory voices (programs 90-105), read from the patch sheets in its owner's manual.
+- ANALOG DRIFT: each oscillator's pitch wanders a few cents over a second or two, as the original's free-running VCOs did (GLO > ANALOG, DRIFT; 0 is off).
+
 ## 1.4
 
 - Master effects on the whole mix: DRIVE, BASS and TREBLE shelves, a stereo CHORUS, stereo WIDTH and a compressor (GLO pages).

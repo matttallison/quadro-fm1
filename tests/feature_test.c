@@ -24,6 +24,7 @@ static void patch(const int *kv)
     memset(&q, 0, sizeof q);
     q_init();
     q_patch_init(&qp, "T");
+    qp.v[QP_DRIFT] = 0;                         /* (the tests measure exact pitches; drift has its own test below) */
     qp.v[QP_B_EB16] = 0; qp.v[QP_S_8] = qp.v[QP_S_4] = 0; qp.v[QP_P_8] = 0;
     qp.v[QP_M_B] = strchr(only, 'B') ? 100 : 0, qp.v[QP_M_S] = strchr(only, 'S') ? 100 : 0;
     qp.v[QP_M_P] = strchr(only, 'P') ? 100 : 0, qp.v[QP_M_L] = strchr(only, 'L') ? 100 : 0;
@@ -481,6 +482,14 @@ int main(void)
         double r0 = tail_run(hi0, 48, 5, 1, 2.5, 0, 0) / (tail_run(lo0, 48, 5, 1, 2.5, 0, 0) + 1e-9);
         double r1 = tail_run(hi1, 48, 5, 1, 2.5, 0, 0) / (tail_run(lo1, 48, 5, 1, 2.5, 0, 0) + 1e-9);
         check("COMP squeezes loud against quiet", r1 < r0 * 0.8, "loud / quiet x%.2f (off x%.2f)", r1, r0, 0);
+    }
+    {   /* DRIFT: with it the oscillators' pitch wanders, so a high harmonic smears across bins; at 0 it stays sharp */
+        int k0[] = {QP_L_WAVE, 0, QP_DRIFT, 0, -1}, k1[] = {QP_L_WAVE, 0, QP_DRIFT, 127, -1};
+        double a, b;
+        only = "L";
+        patch(k0); render(69); a = hr(440.0, 8);
+        patch(k1); render(69); b = hr(440.0, 8);
+        check("DRIFT wanders the pitch", b < a * 0.7 && a > 0.05, "8th harmonic: steady %.3f drifting %.3f", a, b, 0);
     }
     printf("%s\n", bad ? "QUADRO features: FAIL" : "QUADRO features: all ok");
     return bad != 0;

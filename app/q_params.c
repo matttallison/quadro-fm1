@@ -40,6 +40,7 @@ enum {
     QP_REV_SIZE, QP_REV_PRE, QP_DLY_MODE,
     QP_KEY, QP_SCALE, QP_TRANSP,                /* the keyboard in a key: the pads snap to the scale; TRANSPOSE shifts it all */
     QP_X_DRIVE, QP_X_BASS, QP_X_TREB, QP_X_CHR, QP_X_CHRATE, QP_X_CHRDEP, QP_X_COMP, QP_X_WIDTH,
+    QP_DRIFT,                                   /* ANALOG: the oscillators' pitch drift, as on the original */
     QP_N
 };
 #define QD_NAME 12
@@ -213,6 +214,7 @@ static const q_desc_t QD[QP_N] = {
     [QP_X_CHRDEP] = {"DEPTH", "CHORUS DEPTH", 0, 127, 64, F_PCT, 0},
     [QP_X_COMP] = {"COMP", "MASTER COMPRESSOR", 0, 127, 0, F_PCT, 0},
     [QP_X_WIDTH] = {"WIDTH", "STEREO WIDTH", 0, 127, 64, F_WID, 0},
+    [QP_DRIFT] = {"DRIFT", "ANALOG DRIFT", 0, 127, 40, F_PCT, 0},
     [QP_LFO_W] = {"SHAPE", "LFO WAVEFORM", 0, 4, 0, F_ENUM, N_LFOW},
 };
 
@@ -277,6 +279,7 @@ static const q_page_t PAGES[] = {
     {SEC_MIX, PK_EDIT, VZ_FX, "ROOM", {QP_REV, QP_DLY, QP_DTIME, QP_SPLIT}},
     {SEC_MIX, PK_EDIT, VZ_FX, "REVERB", {QP_REV, QP_REV_DEC, QP_REV_DAMP, QP_REV_SIZE}},
     {SEC_MIX, PK_EDIT, VZ_FX, "ROOM 2", {QP_REV_PRE, QP_DLY_MODE, _, _}},
+    {SEC_MIX, PK_EDIT, VZ_FX, "ANALOG", {QP_DRIFT, _, _, _}},
     {SEC_MIX, PK_EDIT, VZ_FX, "DELAY", {QP_DLY, QP_DTIME, QP_DLY_FB, QP_DLY_TONE}},
     {SEC_MIX, PK_EDIT, VZ_MASTER, "MASTER", {QP_X_DRIVE, QP_X_BASS, QP_X_TREB, QP_X_COMP}},
     {SEC_MIX, PK_EDIT, VZ_MASTER, "CHORUS", {QP_X_CHR, QP_X_CHRATE, QP_X_CHRDEP, QP_X_WIDTH}},

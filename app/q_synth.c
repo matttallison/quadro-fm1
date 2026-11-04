@@ -247,6 +247,7 @@ static struct {
     int32_t lfo_v, lfo_sh;                      /* the LFO's value now (Q15, its SHAPE), the S&H's held value */
     int32_t sh, sh_tgt;                         /* sample and hold */
     uint32_t sh_ph, seed;
+    int32_t drf[Q_NV + 4];                      /* analog drift: a slow random pitch wander for each voice, the bass and the lead's two VCOs */
     /* the strings' bus and the ensemble */
     int32_t sbus[Q_BLK], pbus[Q_BLK], bbus[Q_BLK], lbus[Q_BLK], sbbus[Q_BLK];   /* (sbbus: the string bass, CPU0's) */
     int16_t dl[1024];
@@ -269,6 +270,18 @@ static volatile struct {
     uint16_t bpm10;                             /* the MIDI clock's tempo x 10, 0 = none */
     uint32_t keys_lit;                          /* bit k: MIDI note 48 + k sounds */
 } q_mon;
+
+/* ANALOG: each oscillator's pitch wanders a few cents over a second or two (a leaky random walk), as the Quadra's
+ * free-running VCOs and its string divider did; DRIFT sets how far (127: about +-5 cents) */
+static void q_drift_step(void)
+{
+    uint32_t i;
+    for (i = 0; i < Q_NV + 4u; i++) {
+        int32_t d = q.drf[i];
+        q.drf[i] = d + ((int32_t)(q_rand(&q.seed) >> 29) - 3) - (d >> 11);
+    }
+}
+static inline int32_t q_dct(uint32_t i) { return q.drf[i] * P(QP_DRIFT) / 1778; }
 
 /* ------------------------------------------------------------------ keys --- */
 static int q_bass_on(void) { return P(QP_B_EB16) | P(QP_B_EB8) | P(QP_B_SB16) | P(QP_B_SB8); }
@@ -536,7 +549,7 @@ static __attribute__((noinline)) void q_bass(void)
         /* an octave above the Quadra's: the FM-1's keys start at F3, not two octaves below, and its speaker gives
          * nothing at 40-90 Hz; 16' sounds at the key's pitch, 8' an octave up (BASS OCTAVE -1: the Quadra's) */
         int32_t p16 = (int32_t)q.b.note * 16 + (1 + P(QP_B_OCT) - P(QP_CHBASS)) * 192 + q.bend;
-        uint32_t inc8 = q_cents(q_inc(p16), P(QP_B_TUNE) > 0 ? P(QP_B_TUNE) : 0), inc16 = inc8 >> 1, ph = q.b.ph;
+        uint32_t inc8 = q_cents(q_inc(p16), (P(QP_B_TUNE) > 0 ? P(QP_B_TUNE) : 0) + q_dct(Q_NV)), inc16 = inc8 >> 1, ph = q.b.ph;
         int32_t eq = e1 >> 9;
         uint32_t pw = 0x80000000u - (uint32_t)eq * 0x8000u;            /* 50 % -> 25 % at the envelope's top */
         int32_t cut = (P(QP_B_CUT) << 8) + ((eq * P(QP_B_ENV)) >> 8) + ((((int32_t)q.b.note - 48) * P(QP_B_KBD) * 13) >> 2) +
@@ -711,8 +724,9 @@ static __attribute__((noinline)) void q_voices(void)
         if (!sg1 && !v->sg && !pg1 && !v->pg)
             continue;
         {
-            uint32_t inc8 = q_inc((int32_t)v->note * 16 + q.bend);
-            uint32_t pinc8 = o.vib ? q_inc((int32_t)v->note * 16 + q.bend + o.vib) : inc8;
+            int32_t dct = q_dct(n);
+            uint32_t inc8 = q_cents(q_inc((int32_t)v->note * 16 + q.bend), dct);
+            uint32_t pinc8 = o.vib ? q_cents(q_inc((int32_t)v->note * 16 + q.bend + o.vib), dct) : inc8;
             uint32_t incd = o.det ? q_cents(pinc8, o.det) : 0;
             int32_t s0 = v->sg, ds = (sg1 - s0) / Q_BLK, g0 = v->pg, dg = (pg1 - g0) / Q_BLK;
             int32_t *sb = q.sbus, *pb = q.pbus;
@@ -805,8 +819,9 @@ static __attribute__((noinline)) void q_voices_para(void)
         k1 = k1 >= k0 ? k1 : qclamp(k0 - 4096, 0, 32767);         /* in at once, out over ~8 blocks (6 ms) */
         dk = (k1 - k0) / Q_BLK;
         {
-            uint32_t inc8 = q_inc((int32_t)v->note * 16 + q.bend);
-            uint32_t pinc8 = o.vib ? q_inc((int32_t)v->note * 16 + q.bend + o.vib) : inc8;
+            int32_t dct = q_dct(n);
+            uint32_t inc8 = q_cents(q_inc((int32_t)v->note * 16 + q.bend), dct);
+            uint32_t pinc8 = o.vib ? q_cents(q_inc((int32_t)v->note * 16 + q.bend + o.vib), dct) : inc8;
             uint32_t incd = o.det ? q_cents(pinc8, o.det) : 0;
             int32_t poly = (o.p16 | o.p8 | o.p4) && v->note >= split, str = o.s16 | o.s8 | o.s4;
             q_vph_t ph = {v->ph, v->pph, v->ph2, v->dv, v->pdv, v->dv2};
@@ -1047,7 +1062,7 @@ static __attribute__((noinline)) void q_lead(void)
             int32_t vdep = qclamp(P(QP_L_VIB) + q.modw, 0, 127);
             int32_t vib = qm15(q.lfo_v, q.l.vib > (q.modw << 8) ? q.l.vib : q.modw << 8) * vdep / 127 * 16 >> 15;   /* +- 1 semitone */
             int32_t tr = (q.l.trill_hi ? P(QP_L_TRILL) * 16 : 0) + q.bend + (P(QP_L_TOUCH) == 1 ? (q.touch >> 8) * 32 / 127 : 0);   /* the touch: up to 2 semitones */
-            uint32_t inc1 = q_inc(q.l.p1 + vib + tr), inc2 = q_cents(q_inc(q.l.p2 + vib + tr), P(QP_L_DET));
+            uint32_t inc1 = q_cents(q_inc(q.l.p1 + vib + tr), q_dct(Q_NV + 2)), inc2 = q_cents(q_inc(q.l.p2 + vib + tr), P(QP_L_DET) + q_dct(Q_NV + 3));
             uint32_t ph1 = q.l.ph1, ph2 = q.l.ph2, subph = q.l.subph, pw;
             int32_t wave = P(QP_L_WAVE), two = P(QP_L_VCO2), eq = e1 >> 9, pm = qm15(eq, P(QP_L_PWM) * 258);
             static const int8_t LW2[5] = {0, 0, 1, 5, 6};               /* WAVE2 > the lead's wave codes (SAW SQR TRI SINE) */
@@ -1092,6 +1107,7 @@ static __attribute__((noinline)) void q_lead(void)
 static void q_voices_job(uint32_t a)
 {
     (void)a;
+    q_drift_step();
     if (P(QP_PARA)) q_voices_para(); else q_voices();
 }
 #ifndef Q_PAR_RUN

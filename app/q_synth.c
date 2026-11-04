@@ -339,10 +339,16 @@ static void q_key(uint8_t note, int on)
         held_add(q.phys, &q.nphys, note);
         held_add(q.held, &q.nheld, note);
         {   /* CHORD: the key plays its shape on the strings and the poly (the bass and the lead take the key) */
-            static const int8_t SHAPE[10][4] = {{0, -1, -1, -1}, {0, 4, 7, -1}, {0, 3, 7, -1}, {0, 4, 7, 10}, {0, 3, 7, 10},
-                                                {0, 4, 7, 11}, {0, 5, 7, -1}, {0, 7, 12, -1}, {0, 7, 14, 19}, {0, 3, 7, 14}};
-            uint32_t c = (uint32_t)qclamp(P(QP_CHORD), 0, 9), k;
-            for (k = 0; k < 4u && SHAPE[c][k] >= 0; k++)
+            static const int8_t SHAPE[23][5] = {
+                {0, -1, -1, -1, -1}, {0, 4, 7, -1, -1}, {0, 3, 7, -1, -1}, {0, 4, 7, 10, -1}, {0, 3, 7, 10, -1},
+                {0, 4, 7, 11, -1}, {0, 5, 7, -1, -1}, {0, 7, 12, -1, -1}, {0, 7, 14, 19, -1}, {0, 3, 7, 14, -1},
+                {0, 4, 7, 14, -1},   /* ADD9 */  {0, 3, 7, 9, -1},    /* MIN6 */  {0, 4, 7, 9, -1},     /* MAJ6 */
+                {0, 3, 6, -1, -1},   /* DIM */   {0, 4, 8, -1, -1},   /* AUG */   {0, 2, 7, -1, -1},    /* SUS2 */
+                {0, 5, 7, 10, -1},   /* 7SUS4 */ {0, 4, 7, 10, 14},   /* DOM9 */  {0, 4, 7, 11, 14},    /* MAJ9 */
+                {0, 3, 7, 10, 17},   /* MIN11 */ {0, 3, 6, 10, -1},   /* M7B5 */  {0, 12, 19, 24, -1},  /* OCT */
+                {0, 5, 10, 15, -1},  /* 4THS */ {0, 4, 7, 11, 18}};  /* MAJ7#11 */
+            uint32_t c = (uint32_t)qclamp(P(QP_CHORD), 0, 22), k;
+            for (k = 0; k < 5u && SHAPE[c][k] >= 0; k++)
                 if (note + SHAPE[c][k] < 128)
                     q_voice_on((uint8_t)(note + SHAPE[c][k]), note);
         }
@@ -871,9 +877,9 @@ static __attribute__((noinline)) void q_lead(void)
     newgate = n > 0;
     if (P(QP_ARP) && n) {                       /* the sequencer: the lead's keys in order, over 1..3 octaves */
         uint32_t step = Q_LFO_INC[72 + P(QP_TRSPD) * 55 / 127];
-        int32_t k, j, sorted[Q_NHELD], mode = P(QP_ARP), len = mode == 5 ? qclamp(P(QP_SQ_LEN), 1, 16) : n * qclamp(P(QP_ARP_OCT), 1, 3), idx, rest = 0, cut = 0;
+        int32_t k, j, sorted[Q_NHELD], mode = P(QP_ARP), len = mode == 5 ? qclamp(P(QP_SQ_LEN), 1, 16) : n * qclamp(P(QP_ARP_OCT), 1, 3), idx, rest = 0, cut = 0, cyc = mode >= 6 && mode != 10 ? len * 2 : len;
         for (k = 0; k < n; k++) sorted[k] = notes[k];
-        for (k = 1; k < n; k++)                 /* (insertion sort: a handful) */
+        for (k = 1; mode != 10 && k < n; k++)    /* (insertion sort: a handful; PLAYED keeps the order the keys went down) */
             for (j = k; j > 0 && sorted[j - 1] > sorted[j]; j--) { int32_t t = sorted[j]; sorted[j] = sorted[j - 1]; sorted[j - 1] = t; }
         if (!q.l.gate) {                        /* the first key: the first step now (DOWN from the top) */
             q.l.arpi = (uint8_t)(mode == 3 ? len - 1 : 0);
@@ -899,6 +905,9 @@ static __attribute__((noinline)) void q_lead(void)
             q.l.odd ^= 1u;
             switch (mode) {
             case 5: q.l.arpi = (uint8_t)((q.l.arpi + 1) % len); break;                       /* STEP */
+            case 6: case 7: case 8: case 9: case 10: case 11:                                  /* PEDAL THUMB CONV DIVERGE PLAYED SKIP: a counter */
+                q.l.arpi = (uint8_t)((q.l.arpi + 1) % cyc);
+                break;
             case 1: q.l.arpi = (uint8_t)((q.l.arpi + 1) % len); break;                       /* UP */
             case 3: q.l.arpi = (uint8_t)(q.l.arpi ? q.l.arpi - 1 : len - 1); break;          /* DOWN */
             case 4: {                                                                         /* RANDOM (not twice) */
@@ -917,8 +926,20 @@ static __attribute__((noinline)) void q_lead(void)
             }
             retrig = 1;
         }
-        if (q.l.arpi >= len) q.l.arpi = 0;
+        if (q.l.arpi >= cyc) q.l.arpi = 0;
         idx = q.l.arpi;
+        if (mode >= 6) {                        /* the counter c (0..cyc) -> the step's place idx in the notes' order */
+            int32_t c = idx, j, m = len > 1 ? len - 1 : 1;
+            switch (mode) {
+            case 6: idx = (c & 1) ? 1 + (c >> 1) % m : 0; break;                           /* PEDAL: the lowest between each */
+            case 7: idx = (c & 1) ? (c >> 1) % m : len - 1; break;                           /* THUMB: the highest between each */
+            case 8: idx = (c % len & 1) ? len - 1 - (c % len) / 2 : (c % len) / 2; break;   /* CONVERGE: out-in from both ends */
+            case 9: j = len - 1 - c % len; idx = (j & 1) ? len - 1 - j / 2 : j / 2; break;   /* DIVERGE: in-out */
+            case 11: idx = ((c >> 1) + ((c & 1) ? 2 : 0)) % len; break;                        /* SKIP: 0 2 1 3 2 4 ... */
+            default: break;
+            }
+            if (idx >= len) idx %= len;
+        }
         if (mode == 5) {                        /* the pattern: semitones over the lowest key; REST is silent */
             int32_t sv = P(QP_SQ0 + idx);
             if (sv <= -25) {

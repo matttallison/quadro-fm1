@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* QUADRO: the 84 factory programs (the original had 16 programmable voices). Each starts from the defaults
+/* QUADRO: the 88 factory programs (the original had 16 programmable voices). Each starts from the defaults
  * (q_params.c QD[].def) and sets what makes it; a list of (parameter, value), ended by 0xFF. */
 typedef struct {
     const char *name;
@@ -8,7 +8,7 @@ typedef struct {
 #define END 0xFF
 #define NEG(v) ((uint8_t)(int8_t)(v))
 
-static const q_factory_t FACTORY[84] = {
+static const q_factory_t FACTORY[88] = {
     {"QUADRO", {QP_B_EB16, 1, QP_B_EB8, 1, QP_B_CUT, 46, QP_B_RES, 40, QP_B_DEC, 86,
                 QP_S_8, 1, QP_S_4, 1, QP_S_ATK, 56, QP_S_REL, 84, QP_M_S, 104,
                 QP_P_8, 1, QP_P_4, 0, QP_M_P, 70, QP_P_CUT, 44, QP_P_ENV, 70,
@@ -330,6 +330,11 @@ static const q_factory_t FACTORY[84] = {
     {"MINOR STEP", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0, QP_L_WAVE, 1, QP_L_VCO2, 1, QP_L_DET, 8, QP_L_CUT, 70, QP_L_RES, 36, QP_L_ENV, 70, QP_L_A, 0, QP_L_DEC, 60, QP_L_R, 40, QP_M_L, 112, QP_PH_S, 0, QP_DLY, 30, QP_DTIME, 2, QP_REV, 30, QP_ARP, 5, QP_TRSPD, 66, QP_SQ_LEN, 8, QP_SQ_GATE, 70, QP_SQ0, 0, QP_SQ1, 7, QP_SQ2, 12, QP_SQ3, 15, QP_SQ4, 12, QP_SQ5, 7, QP_SQ6, 3, QP_SQ7, 7, QP_SQ8, 0, QP_SQ9, 0, QP_SQ10, 0, QP_SQ11, 0, QP_SQ12, 0, QP_SQ13, 0, QP_SQ14, 0, QP_SQ15, 0, END}},
     {"SWING STEP", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0, QP_L_WAVE, 2, QP_L_VCO2, 0, QP_L_CUT, 60, QP_L_RES, 40, QP_L_ENV, 60, QP_L_A, 0, QP_L_DEC, 50, QP_L_R, 30, QP_M_L, 116, QP_PH_S, 0, QP_REV, 24, QP_ARP, 5, QP_TRSPD, 68, QP_SQ_LEN, 8, QP_SQ_GATE, 45, QP_SQ_SW, 34, QP_SQ0, 0, QP_SQ1, NEG(-25), QP_SQ2, 7, QP_SQ3, NEG(-25), QP_SQ4, 12, QP_SQ5, NEG(-25), QP_SQ6, 7, QP_SQ7, 10, QP_SQ8, 0, QP_SQ9, 0, QP_SQ10, 0, QP_SQ11, 0, QP_SQ12, 0, QP_SQ13, 0, QP_SQ14, 0, QP_SQ15, 0, END}},
     {"BASS + STEP", {QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0, QP_B_EB16, 1, QP_B_EB8, 0, QP_B_WAVE, 1, QP_B_CUT, 50, QP_B_RES, 40, QP_B_ENV, 80, QP_B_DEC, 84, QP_SPLIT, 60, QP_L_WAVE, 0, QP_L_VCO2, 1, QP_L_DET, 6, QP_L_CUT, 64, QP_L_RES, 30, QP_L_ENV, 60, QP_L_A, 0, QP_L_DEC, 60, QP_L_R, 30, QP_M_L, 108, QP_PH_S, 0, QP_REV, 20, QP_ARP, 5, QP_TRSPD, 66, QP_SQ_LEN, 12, QP_SQ_GATE, 60, QP_SQ0, 12, QP_SQ1, NEG(-25), QP_SQ2, 19, QP_SQ3, 12, QP_SQ4, NEG(-25), QP_SQ5, 15, QP_SQ6, 12, QP_SQ7, NEG(-25), QP_SQ8, 17, QP_SQ9, NEG(-25), QP_SQ10, 15, QP_SQ11, 12, QP_SQ12, 0, QP_SQ13, 0, QP_SQ14, 0, QP_SQ15, 0, END}},
+    /* ---- more sequencer modes and chords (1.3) */
+    {"PEDAL ARP", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0, QP_L_WAVE, 1, QP_L_VCO2, 1, QP_L_DET, 8, QP_L_CUT, 60, QP_L_RES, 40, QP_L_ENV, 70, QP_L_A, 0, QP_L_DEC, 50, QP_L_R, 30, QP_M_L, 112, QP_PH_S, 0, QP_DLY, 30, QP_DTIME, 2, QP_REV, 24, QP_ARP, 6, QP_ARP_OCT, 2, QP_TRSPD, 70, QP_SQ_GATE, 60, END}},
+    {"CONVERGE", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0, QP_L_WAVE, 0, QP_L_VCO2, 0, QP_L_CUT, 70, QP_L_RES, 30, QP_L_ENV, 60, QP_L_A, 0, QP_L_DEC, 60, QP_L_R, 30, QP_M_L, 112, QP_PH_S, 0, QP_REV, 30, QP_ARP, 8, QP_ARP_OCT, 2, QP_TRSPD, 68, QP_SQ_GATE, 70, END}},
+    {"MAJ9 PAD", {QP_B_EB16, 0, QP_S_8, 1, QP_S_4, 1, QP_S_ATK, 70, QP_S_REL, 90, QP_S_ENS, 110, QP_M_S, 100, QP_P_8, 0, QP_M_P, 0, QP_M_L, 0, QP_CHORD, 18, QP_PH_S, 1, QP_REV, 50, END}},
+    {"DOM9 STAB", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_CHORD, 17, QP_P_8, 1, QP_P_4, 1, QP_P_CUT, 44, QP_P_RES, 20, QP_P_ENV, 80, QP_P_A, 0, QP_P_D, 96, QP_P_S, 70, QP_P_R, 40, QP_M_P, 120, QP_M_L, 0, QP_PH_S, 0, QP_REV, 24, END}},
 };
 
 static void q_factory(q_patch_t *p, uint32_t k)

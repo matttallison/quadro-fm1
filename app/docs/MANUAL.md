@@ -34,7 +34,7 @@ reproduce 40–90 Hz. Set BASS OCTAVE to −1 for the original register on headp
 | **FX** | The phase shifter: inputs, then sweep |
 | **GLO** | The output mixer, then the room (reverb, delay, delay time) |
 | **HOME** | The four sections at a glance, with knobs 1–4 as their levels. Hold it for SETUP. |
-| **PRESET** knob | Loads a program, 1–84 ([the list](https://github.com/matttallison/quadro-fm1/blob/main/app/docs/PRESETS.md)) |
+| **PRESET** knob | Loads a program, 1–88 ([the list](https://github.com/matttallison/quadro-fm1/blob/main/app/docs/PRESETS.md)) |
 | **SAVE** | Saves the current sound: PRESET picks the slot, SAVE again writes, any other button cancels |
 | **PLAY** | HOLD: the keys stay down, like the original's HOLD footswitch |
 | **REC** | SUSTAIN: the longest release |
@@ -79,11 +79,11 @@ Programs 69–80 are examples of each.
 - **Split.** When a bass voice is on, keys below SPLIT play the bass, and the strings, poly and lead play above it.
   The lead always takes the top key held.
 - **Chords.** CHORD (SEL page) plays a whole shape from one key on the strings and poly: MAJ, MIN, 7, MIN7, MAJ7,
-  SUS4, 5TH, STACK or MIN9. CH BASS adds the chord's root on the bass, an octave down.
+  SUS4, 5TH, STACK, MIN9, ADD9, MIN6, MAJ6, DIM, AUG, SUS2, 7SUS, DOM9, MAJ9, MIN11, M7B5, OCT, 4THS or M7#11 (up to five notes: a key uses that many of the eight voices). CH BASS adds the chord's root on the bass, an octave down.
 - **Paraphonic.** PARA gives the strings and poly one shared envelope and filter. Each new key restarts it.
 - **Touch.** The FM-1's keys sense pressure. On the lead, TOUCH is BEND (pressure bends up) or BRILL (pressure opens
   the filter). SETUP > TOUCH sets how much it responds: 0 is off, 1 needs the hardest press, 6 the lightest (2 by default).
-- **Sequencer.** The lead runs UP, UP/DN, DOWN or RAND over the keys held, across 1–3 octaves. PLAY (HOLD) keeps
+- **Sequencer.** The lead runs UP, UP/DN, DOWN, RAND, PEDAL (the lowest key between each note), THUMB (the highest between each), CONV (out-in from both ends), DIVRG (in-out), PLAYED (the order the keys went down) or SKIP (0 2 1 3 2 4 …) over the keys held, across 1–3 octaves. PLAY (HOLD) keeps
   it running hands-free. Without a clock it runs at SPEED; with MIDI clock it locks to SYNC (1/4 to 1/32, with
   triplets).
 - **Step sequencer.** SEQ = STEP plays a pattern of up to 16 steps over the lowest key you hold on the lead: each
@@ -105,7 +105,7 @@ Hold HOME. Press EDIT to switch between the two pages. Press HOME to leave.
 | Page | Knob 1 | Knob 2 | Knob 3 | Knob 4 |
 | --- | --- | --- | --- | --- |
 | 1 | MIDI channel (OMNI, 1–16) | Bluetooth MIDI on/off | TOUCH: 0 off, 1 (least) – 6 (most sensitive) | CLOCK OUT on/off |
-| 2 | TEMPO (internal clock) | RUN: START / STOP | — | FACT: turn twice to restore the 84 factory programs |
+| 2 | TEMPO (internal clock) | RUN: START / STOP | — | FACT: turn twice to restore the 88 factory programs |
 
 ![SETUP, page 1](img/setup.png)
 
@@ -121,7 +121,7 @@ QUADRO takes MIDI over USB, Bluetooth and the TRS jack, on the SETUP channel (OM
 | CC 64 | Sustain |
 | CC 74 | The current section's filter cutoff |
 | Channel pressure | The lead's TOUCH |
-| Program change 0–83 | Programs 1–84 |
+| Program change 0–87 | Programs 1–88 |
 | Clock, start, stop, continue | The sequencer, trill and delay follow it. The header shows the tempo. |
 
 **Out:** the keys you play go out as notes with velocity, over USB and Bluetooth. With CLOCK OUT on, QUADRO sends
@@ -135,4 +135,4 @@ SETUP > BLE turns Bluetooth off, and the setting is kept.
 Programs and settings are kept in the FM-1's flash. SAVE stores the current sound in a program slot. MIDI channel,
 Bluetooth, touch, clock and tempo are saved with them.
 
-When you update from a 0.x test build, your settings are kept and the 84 factory programs replace the old ones.
+When you update from a 0.x test build, your settings are kept and the 88 factory programs replace the old ones.

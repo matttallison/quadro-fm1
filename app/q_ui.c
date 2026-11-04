@@ -35,7 +35,7 @@ static const uint16_t SEC_COL[SEC_N] = {RGB(236, 84, 60), RGB(244, 180, 52), RGB
 static const uint16_t SEC_DARK[SEC_N] = {RGB(70, 22, 16), RGB(72, 52, 10), RGB(20, 62, 34), RGB(16, 44, 82),
                                          RGB(56, 30, 74), RGB(60, 60, 64)};
 
-#define NPROG 84u
+#define NPROG 88u
 static q_patch_t progs[NPROG];                  /* the programs (flash: app.c) */
 
 static struct {
@@ -710,8 +710,8 @@ static void vz_arp(void)
 {
     uint16_t c = SEC_COL[SEC_LEAD];
     int32_t mode = P(QP_ARP), i, n = q.nheld, x = 6;
-    static const char *const M[6] = {"OFF: THE TOP KEY", "UP", "UP / DOWN", "DOWN", "RANDOM", "STEP: LOWEST KEY = ROOT"};
-    cv_text_on(6, 4, &FONT_S, M[mode % 6], mode ? c : C_LBL, C_BG);
+    static const char *const M[12] = {"OFF: THE TOP KEY", "UP", "UP / DOWN", "DOWN", "RANDOM", "STEP: LOWEST KEY = ROOT", "PEDAL: LOW BETWEEN", "THUMB: HIGH BETWEEN", "CONVERGE", "DIVERGE", "AS PLAYED", "SKIP: 0 2 1 3 2 4"};
+    cv_text_on(6, 4, &FONT_S, M[mode % 12], mode ? c : C_LBL, C_BG);
     if (mode == 5) {                            /* the pattern: a bar a step (semitones), a dot for a REST, the step now lit */
         int32_t len = P(QP_SQ_LEN), cur = q_mon.arp_step;
         cv_rect(6, 41, 228, 1, C_PANEL);

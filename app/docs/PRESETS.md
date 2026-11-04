@@ -1,6 +1,6 @@
 # QUADRO's programs
 
-84 factory programs. Turn PRESET to pick one; MIDI program change 0-83 picks 1-84. *Sections* are the parts that sound; *features* are the parts of QUADRO each one leans on. Every lead takes TOUCH (key pressure) as pitch bend unless it says TOUCH BRILL (pressure opens the filter).
+88 factory programs. Turn PRESET to pick one; MIDI program change 0-87 picks 1-88. *Sections* are the parts that sound; *features* are the parts of QUADRO each one leans on. Every lead takes TOUCH (key pressure) as pitch bend unless it says TOUCH BRILL (pressure opens the filter).
 
 ## 1-16: The first bank
 
@@ -163,6 +163,17 @@ New in 1.2: SEQ = STEP, a 16-step pattern over the lowest lead key. Press ARP to
 | 83 | SWING STEP | lead  | STEP, SWING, RESTS |
 | 84 | BASS + STEP | bass lead  | STEP, bass split |
 
+## 85-88: More arps and chords
+
+New in 1.3: the PEDAL and CONV sequencer modes, and the MAJ9 and DOM9 chords.
+
+| # | Program | Sections | Features |
+| --- | --- | --- | --- |
+| 85 | PEDAL ARP | lead  | SEQUENCER PEDAL |
+| 86 | CONVERGE | lead  | SEQUENCER CONV |
+| 87 | MAJ9 PAD | strings  | CHORD MAJ9 PHASER |
+| 88 | DOM9 STAB | poly  | CHORD DOM9 |
+
 ## Your own
 
-Edit any program and press SAVE, pick the slot with PRESET, and SAVE again. SETUP > FACT puts all 84 back.
+Edit any program and press SAVE, pick the slot with PRESET, and SAVE again. SETUP > FACT puts all 88 back.

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3
+
+- Six new sequencer modes: PEDAL, THUMB, CONV, DIVRG, PLAYED (the order the keys went down) and SKIP.
+- Thirteen new chords, 23 in all: ADD9, MIN6, MAJ6, DIM, AUG, SUS2, 7SUS, DOM9, MAJ9, MIN11, M7B5, OCT, 4THS, M7#11. Chords can have five notes.
+- 4 new programs (85-88), 88 in all.
+
 ## 1.2
 
 - A step sequencer: SEQ = STEP plays a 16-step pattern (semitones from the lowest lead key, or REST) with LENGTH, GATE

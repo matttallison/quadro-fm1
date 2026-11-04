@@ -98,7 +98,7 @@ int main(int argc, char **argv)
                 mid += (l + r) * (l + r);
             }
         }
-        for (i = 0; i < Q_NV; i++) left += q.v[i].on;
+        for (i = 0; i < Q_NV; i++) { left += q.v[i].on; if (getenv("DBG") && q.v[i].on) printf("   v%u note %u root %u gate %u held %u stage? se %d\n", i, q.v[i].note, q.v[i].root, q.v[i].gate, q.v[i].held, (int)q.v[i].se); }
         {
             double pdb = 20 * log10(pk / 32768 + 1e-9), tdb = 20 * log10(tail / 32768 + 1e-9);
             for (i = 0; i < frames / Q_BLK; i++)

@@ -109,6 +109,23 @@ static void seq_run(const int *kv, int *notes, int *quiet, int *total)
     }
 }
 
+/* the lead's sequencer over held keys: the note sequence (each change of lead_note while sounding), up to 12 */
+static int arp_seq(int mode, const int *keys, int nk, int *out)
+{
+    int kv[] = {QP_L_WAVE, 0, QP_L_VCO2, 0, QP_L_A, 0, QP_L_DEC, 127, QP_L_R, 10, QP_ARP, mode, QP_TRSPD, 110, QP_ARP_OCT, 1, QP_SPLIT, 48, -1};
+    int k, n = 0, last = -1, i;
+    only = "L";
+    patch(kv);
+    for (i = 0; i < nk; i++) q_post(QE_ON, keys[i]);
+    for (k = 0; k < 2 * FS / Q_BLK && n < 12; k++) {
+        int32_t o[2 * Q_BLK];
+        memset(o, 0, sizeof o);
+        q_block(o);
+        if (q_mon.lead_note && q_mon.lead_note != last && q_mon.lead_env > 800) out[n++] = last = q_mon.lead_note;
+    }
+    return n;
+}
+
 int main(void)
 {
     static const char *WN[5] = {"SAW", "SQR", "PULSE", "TRI", "SINE"};
@@ -345,6 +362,43 @@ int main(void)
             g[25] = 30;                                             /* QP_SQ_GATE's value */
             seq_run(g, &n2, &qt2, &tot2);
             check("GATE 30 % cuts the steps short", qt2 > qt + tot / 8, "silent %.0f (100 %%: %.0f) of %.0f", qt2, qt, tot);
+        }
+    }
+    printf("sequencer modes and chords\n");
+    {
+        static const int K[3] = {60, 64, 67};
+        static const struct { int mode; const char *name; int want[6]; } T[] = {
+            {1, "UP", {60, 64, 67, 60, 64, 67}}, {3, "DOWN", {67, 64, 60, 67, 64, 60}},
+            {6, "PEDAL", {60, 64, 60, 67, 60, 64}}, {7, "THUMB", {67, 60, 67, 64, 67, 60}},
+            {8, "CONV", {60, 67, 64, 60, 67, 64}}, {9, "DIVRG", {64, 67, 60, 64, 67, 60}},
+            {10, "PLAYED", {60, 64, 67, 60, 64, 67}}, {11, "SKIP", {60, 67, 64, 60, 67, 64}},
+        };
+        unsigned t;
+        for (t = 0; t < sizeof T / sizeof T[0]; t++) {
+            int got[12], n = arp_seq(T[t].mode, K, 3, got), ok = n >= 6, j;
+            char nm[40];
+            for (j = 0; j < 6 && ok; j++) ok = got[j] == T[t].want[j];
+            snprintf(nm, sizeof nm, "SEQ %s", T[t].name);
+            check(nm, ok, "%.0f %.0f %.0f ...", got[0], got[1], got[2]);
+            if (!ok) { for (j = 0; j < n; j++) printf(" %d", got[j]); printf("\n"); }
+        }
+        {   /* PLAYED: the order the keys went down (67 64 60), not the pitch order */
+            static const int K2[3] = {67, 60, 64};
+            int got[12], n = arp_seq(10, K2, 3, got);
+            check("SEQ PLAYED keeps the press order", n >= 3 && got[0] == 67 && got[1] == 60 && got[2] == 64, "%.0f %.0f %.0f", got[0], got[1], got[2]);
+        }
+    }
+    {
+        static const struct { int c; int notes; } CH[] = {{10, 4}, {13, 3}, {17, 5}, {19, 5}, {21, 4}, {22, 4}};
+        unsigned t;
+        for (t = 0; t < sizeof CH / sizeof CH[0]; t++) {
+            int kv[] = {QP_CHORD, CH[t].c, QP_P_8, 1, QP_SPLIT, 48, -1}, on = 0, i;
+            only = "P";
+            patch(kv);
+            q_post(QE_ON, 60);
+            for (i = 0; i < 20; i++) { int32_t o[2 * Q_BLK]; memset(o, 0, sizeof o); q_block(o); }
+            for (i = 0; i < Q_NV; i++) on += q.v[i].on;
+            check("CHORD shapes sound all their notes", on == CH[t].notes, "chord %.0f: %.0f voices (want %.0f)", CH[t].c, on, CH[t].notes);
         }
     }
     printf("%s\n", bad ? "QUADRO features: FAIL" : "QUADRO features: all ok");

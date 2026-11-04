@@ -296,7 +296,7 @@ static void knob(uint32_t n, int32_t d)
                 ui.pop_param = -1;
             }
             if (n == 2) { sound_random(); cmp_on = 0; ui.edited = 1; }
-            if (n == 3) { iw_state = 1; ui_say("INTERVAL: PLAY 2 KEYS"); }
+            if (n == 3) { if (d > 0) { iw_state = 1; ui_say("INTERVAL: PLAY 2 KEYS"); } else { iw_state = 3; ui_say("TRILL: PLAY A KEY"); } }
         }
         ui.store_req = 1;
         ui.force = 1;
@@ -1045,7 +1045,7 @@ static void draw_knobs(void)
         char v[16];
         if (n) cv_rect(x, 6, 1, 54, C_RULE);
         if (ui.setup) {
-            static const char *const L[4][4] = {{"MIDI", "BLE", "TOUCH", "CLOCK"}, {"TEMPO", "RUN", "", "FACT"}, {"BASS", "STRG", "POLY", "LEAD"}, {"TAP", "COMP", "RAND", "INTVL"}};
+            static const char *const L[4][4] = {{"MIDI", "BLE", "TOUCH", "CLOCK"}, {"TEMPO", "RUN", "", "FACT"}, {"BASS", "STRG", "POLY", "LEAD"}, {"TAP", "COMP", "RAND", "WRITE"}};
             text_c(cx, 6, L[ui.setup_page & 3u][n], C_LBL, C_BG, 0);
             if (ui.setup_page == 2u) { if (ui.sch[n]) num(v, ui.sch[n], 0); else cat(v, "-"); text_c(cx, 26, v, C_TXT, C_BG, 1); continue; }
             if (ui.setup_page == 3u) { if (n == 0) { char *p = num(v, ui.tempo10 / 10, 0); *p = 0; text_c(cx, 26, v, C_TXT, C_BG, 1); } if (n == 1) text_c(cx, 26, cmp_on ? "STORED" : "EDIT", C_TXT, C_BG, 1); if (n == 2) text_c(cx, 26, "-->", C_TXT, C_BG, 1); if (n == 3) text_c(cx, 26, iw_state ? "KEYS" : "-->", C_TXT, C_BG, 1); continue; }
@@ -1248,7 +1248,8 @@ static void key_down_v(uint32_t k, uint32_t vel)
 {
     if (iw_state) {                             /* INTERVAL WRITE: the distance between two keys becomes VCO 2's interval */
         uint32_t n = key_note(k);
-        if (iw_state == 1) { iw_a = (uint8_t)n; iw_state = 2; ui_say("NOW THE 2ND KEY"); }
+        if (iw_state == 3) { qp.v[QP_L_TRILL] = (int8_t)q_clampi((int32_t)n - (int32_t)key_note(0), 0, 24); iw_state = 0; ui.edited = 1; ui.store_req = 1; ui_say("TRILL WRITTEN"); }
+        else if (iw_state == 1) { iw_a = (uint8_t)n; iw_state = 2; ui_say("NOW THE 2ND KEY"); }
         else { qp.v[QP_L_INT] = (int8_t)q_clampi((int32_t)n - (int32_t)iw_a, -60, 60); qp.v[QP_L_VCO2] = 1; iw_state = 0; ui.edited = 1; ui.store_req = 1; ui_say("INTERVAL WRITTEN"); }
         return;
     }

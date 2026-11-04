@@ -171,6 +171,8 @@ and the poly from another); the others keep the channel of page 1. Strings and p
 | Pitch bend | ±2 semitones |
 | CC 1 (mod wheel) | Lead vibrato |
 | CC 64 | Sustain |
+| CC 68 | FLAT footswitch: the lead one semitone down while held |
+| CC 69 | HOLD footswitch: the lead gate stays open after the key goes |
 | CC 74, 71, 73, 72 | The current section's cutoff, resonance, attack and release (the bass: its envelope and decay) |
 | CC 91, 93, 94 | Reverb, chorus and delay amount |
 | CC 20–23 | The bass, strings, poly and lead levels |

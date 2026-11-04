@@ -249,7 +249,7 @@ static struct {
     int32_t sh, sh_tgt;                         /* sample and hold */
     uint32_t sh_ph, seed;
     uint8_t nvel[128], nmask[128];              /* each key's velocity (MIDI in), and the sections it plays (MIDI channels: 1 bass, 2 strings, 4 poly, 8 lead) */
-    uint8_t flat, cmask, latched;                     /* the sections the key being pressed goes to; the sequencer's own HOLD is on */
+    uint8_t flat, glock, cmask, latched;                     /* the sections the key being pressed goes to; the sequencer's own HOLD is on */
     int32_t drf[Q_NV + 4];                      /* analog drift: a slow random pitch wander for each voice, the bass and the lead's two VCOs */
     /* the strings' bus and the ensemble */
     int32_t sbus[Q_BLK], pbus[Q_BLK], bbus[Q_BLK], lbus[Q_BLK], sbbus[Q_BLK];   /* (sbbus: the string bass, CPU0's) */
@@ -836,7 +836,7 @@ static __attribute__((noinline)) void q_voices_para(void)
             uint32_t inc8 = q_cents(q_inc((int32_t)v->note * 16 + q.bend), dct);
             uint32_t pinc8 = o.vib ? q_cents(q_inc((int32_t)v->note * 16 + q.bend + o.vib), dct) : inc8;
             uint32_t incd = o.det ? q_cents(pinc8, o.det) : 0;
-            int32_t poly = (o.p16 | o.p8 | o.p4) && v->note >= split, str = o.s16 | o.s8 | o.s4;
+            int32_t poly = (o.p16 | o.p8 | o.p4) && v->note >= split && (!split || v->note < split + 36), str = o.s16 | o.s8 | o.s4;
             q_vph_t ph = {v->ph, v->pph, v->ph2, v->dv, v->pdv, v->dv2};
             q_osc_t oc = o;
             q_osc_voice(&oc, str, poly);
@@ -1009,7 +1009,7 @@ static __attribute__((noinline)) void q_lead(void)
         if (!q.l.gate)
             q.l.vib = 0;
     }
-    q.l.gate = (uint8_t)newgate;
+    q.l.gate = (uint8_t)(newgate || (q.glock && q.l.gate));   /* GATE LOCK-OUT footswitch: the note keeps sounding after the key goes */
     if (retrig)
         q.l.stage = 1;
     if (!(P(QP_ARP) && n))

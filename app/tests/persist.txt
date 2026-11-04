@@ -17,3 +17,27 @@ reboot
 wait 1500
 expect prog 75
 expect pwave 3
+# the keyboard in a key: C MAJOR snaps F# down to F; TRANSPOSE shifts it all
+tap HOME
+turn ALGO 1
+turn ALGO 1
+turn ALGO 1
+tap SEL
+tap SEL
+turn K2 1
+expect knote1 53
+expect knote3 55
+turn K3 1
+turn K3 1
+expect knote0 55
+# strings brought in on a program without them: the footage and the level follow each other
+midi C0 04 00
+wait 300
+expect sm 0
+tap HOME
+turn ALGO 1
+turn ALGO 1
+expect section 1
+turn K2 1
+expect s8 1
+expect sm 100

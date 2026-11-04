@@ -6,6 +6,9 @@
 #define QD_VER APP_VERSION
 #define Q_PAR_RUN(fn) (FM1B_CPU2 && plat_cpu2_on() && plat_cpu2_run(fn, 0))   /* the voices on the second core */
 #define Q_PAR_WAIT() plat_cpu2_wait()
+#ifdef PLAT_HOST
+#include <stdlib.h>
+#endif
 #include "q_params.c"
 #include "q_synth.c"
 #include "q_presets.c"
@@ -114,7 +117,7 @@ void app_overload(void)
 #define QS_MAGIC_V4 0x34524451u                  /* "QDR4" (1.0) and "QDR3" (0.4 - 0.9): every program, two objects: ... */
 #define QS_MAGIC_V3 0x33524451u                  /* ... their settings are kept, their programs are not (the factory ones are new) */
 #define QS_PARTS 4u
-#define QS_PART (NPROG / QS_PARTS)
+#define QS_PART ((NPROG + QS_PARTS - 1u) / QS_PARTS)
 static uint8_t qs_buf[PLAT_STORE_MAX] __attribute__((aligned(4)));
 static uint32_t qs_last[QS_PARTS];               /* what each part held when last written (an unchanged part is not written) */
 static const uint8_t QS_OBJ[QS_PARTS] = {OBJ_PROGS, OBJ_PROGS2, OBJ_PROGS3, OBJ_PROGS4};
@@ -342,6 +345,10 @@ int app_expect(const char *what, int *got)
     else if (!strcmp(what, "pdet")) *got = qp.v[QP_P_DET];
     else if (!strcmp(what, "pfmode")) *got = qp.v[QP_P_FMODE];
     else if (!strcmp(what, "edited")) *got = ui.edited;
+    else if (!strncmp(what, "knote", 5)) *got = (int)key_note((uint32_t)atoi(what + 5));      /* the note pad N plays */
+    else if (!strcmp(what, "pm")) *got = qp.v[QP_M_P];
+    else if (!strcmp(what, "sm")) *got = qp.v[QP_M_S];
+    else if (!strcmp(what, "s8")) *got = qp.v[QP_S_8];
     else return 0;
     return 1;
 }

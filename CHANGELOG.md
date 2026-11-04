@@ -1,9 +1,19 @@
 # Changelog
 
+## 1.4
+
+- Master effects on the whole mix: DRIVE, BASS and TREBLE shelves, a stereo CHORUS, stereo WIDTH and a compressor (GLO pages).
+- The room extended: reverb DECAY, DAMP, SIZE (room to cathedral) and PRE-DELAY; delay FEEDBACK, TONE, PINGPONG or STEREO
+  mode, and four more note values (dotted 1/8 and 1/16, 4T, 32T).
+- Scale lock: set the keyboard to a KEY and SCALE (SEL > SCALE), plus TRANSPOSE.
+- Fixed: a section added to a program that had it off would not sound. Turning a footage on now brings its level up, and
+  raising a level from zero turns its first footage on. The 16' footages count for a section being on.
+- Program 89, INIT: a plain starting point for a new sound.
+
 ## 1.3
 
 - Six new sequencer modes: PEDAL, THUMB, CONV, DIVRG, PLAYED (the order the keys went down) and SKIP.
-- Thirteen new chords, 23 in all: ADD9, MIN6, MAJ6, DIM, AUG, SUS2, 7SUS, DOM9, MAJ9, MIN11, M7B5, OCT, 4THS, M7#11. Chords can have five notes.
+- Fourteen new chords, 24 in all: ADD9, MIN6, MAJ6, DIM, AUG, SUS2, 7SUS, DOM9, MAJ9, MIN11, M7B5, OCT, 4THS, M7#11. Chords can have five notes.
 - 4 new programs (85-88), 88 in all.
 - A second demo song ([quadro-demo2.mp3](app/docs/quadro-demo2.mp3), [.mid](app/docs/quadro-demo2.mid)) touring the new sounds. BP WAH and WIND NOISE are louder.
 

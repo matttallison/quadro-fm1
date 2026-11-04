@@ -1,6 +1,6 @@
 # QUADRO's programs
 
-88 factory programs. Turn PRESET to pick one; MIDI program change 0-87 picks 1-88. *Sections* are the parts that sound; *features* are the parts of QUADRO each one leans on. Every lead takes TOUCH (key pressure) as pitch bend unless it says TOUCH BRILL (pressure opens the filter).
+89 factory programs. Turn PRESET to pick one; MIDI program change 0-88 picks 1-89. *Sections* are the parts that sound; *features* are the parts of QUADRO each one leans on. Every lead takes TOUCH (key pressure) as pitch bend unless it says TOUCH BRILL (pressure opens the filter).
 
 ## 1-16: The first bank
 
@@ -174,6 +174,12 @@ New in 1.3: the PEDAL and CONV sequencer modes, and the MAJ9 and DOM9 chords.
 | 87 | MAJ9 PAD | strings  | CHORD MAJ9 PHASER |
 | 88 | DOM9 STAB | poly  | CHORD DOM9 |
 
+## 89: Init
+
+| # | Program | Sections | Features |
+| --- | --- | --- | --- |
+| 89 | INIT | poly  | a plain saw to start a sound from |
+
 ## Your own
 
-Edit any program and press SAVE, pick the slot with PRESET, and SAVE again. SETUP > FACT puts all 88 back.
+Edit any program and press SAVE, pick the slot with PRESET, and SAVE again. SETUP > FACT puts all 89 back.

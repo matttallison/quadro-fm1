@@ -339,7 +339,7 @@ static void q_key(uint8_t note, int on)
         held_add(q.phys, &q.nphys, note);
         held_add(q.held, &q.nheld, note);
         {   /* CHORD: the key plays its shape on the strings and the poly (the bass and the lead take the key) */
-            static const int8_t SHAPE[23][5] = {
+            static const int8_t SHAPE[24][5] = {
                 {0, -1, -1, -1, -1}, {0, 4, 7, -1, -1}, {0, 3, 7, -1, -1}, {0, 4, 7, 10, -1}, {0, 3, 7, 10, -1},
                 {0, 4, 7, 11, -1}, {0, 5, 7, -1, -1}, {0, 7, 12, -1, -1}, {0, 7, 14, 19, -1}, {0, 3, 7, 14, -1},
                 {0, 4, 7, 14, -1},   /* ADD9 */  {0, 3, 7, 9, -1},    /* MIN6 */  {0, 4, 7, 9, -1},     /* MAJ6 */
@@ -347,7 +347,7 @@ static void q_key(uint8_t note, int on)
                 {0, 5, 7, 10, -1},   /* 7SUS4 */ {0, 4, 7, 10, 14},   /* DOM9 */  {0, 4, 7, 11, 14},    /* MAJ9 */
                 {0, 3, 7, 10, 17},   /* MIN11 */ {0, 3, 6, 10, -1},   /* M7B5 */  {0, 12, 19, 24, -1},  /* OCT */
                 {0, 5, 10, 15, -1},  /* 4THS */ {0, 4, 7, 11, 18}};  /* MAJ7#11 */
-            uint32_t c = (uint32_t)qclamp(P(QP_CHORD), 0, 22), k;
+            uint32_t c = (uint32_t)qclamp(P(QP_CHORD), 0, 23), k;
             for (k = 0; k < 5u && SHAPE[c][k] >= 0; k++)
                 if (note + SHAPE[c][k] < 128)
                     q_voice_on((uint8_t)(note + SHAPE[c][k]), note);
@@ -1205,6 +1205,7 @@ static __attribute__((noinline)) void q_phaser(const int32_t *in, int32_t *l, in
 
 /* ------------------------------------------------------------------ the block --- */
 #include "q_fx.c"                               /* the delay and the reverb (QUADRO's own) */
+#include "q_master.c"                           /* the master effects: drive, EQ, chorus, width, compressor */
 
 static int32_t q_master_tune;                   /* (cents; not used yet) */
 
@@ -1289,6 +1290,13 @@ static void q_block(int32_t *out)
         dsend[i] = qm15(m, dly);
     }
     qf_dtime = (uint8_t)P(QP_DTIME);
+    qf_rsize = (uint8_t)P(QP_REV_SIZE);
+    qf_rpre = (uint32_t)P(QP_REV_PRE) * 24u;
+    qf_dmode = (uint8_t)P(QP_DLY_MODE);
+    qf_rfb = 18000 + P(QP_REV_DEC) * 112;
+    qf_rdamp = 32000 - P(QP_REV_DAMP) * 156;
+    qf_dfb = P(QP_DLY_FB) * 250;
+    qf_dtone = 4000 + P(QP_DLY_TONE) * 131;
     {   /* the reverb and the delay: skipped when nothing has gone in for 3 s (their tails long gone) */
         static uint32_t idle;
         int32_t any = 0;
@@ -1302,8 +1310,14 @@ static void q_block(int32_t *out)
         }
     }
     for (i = 0; i < Q_BLK; i++) {
-        out[2 * i] += dry_l[i] + wl[i];
-        out[2 * i + 1] += dry_r[i] + wr[i];
+        dry_l[i] += wl[i];
+        dry_r[i] += wr[i];
+    }
+    if (!qx_neutral())
+        q_master(dry_l, dry_r, Q_BLK);
+    for (i = 0; i < Q_BLK; i++) {
+        out[2 * i] += dry_l[i];
+        out[2 * i + 1] += dry_r[i];
     }
     {
         uint32_t lit = 0, k;
@@ -1333,4 +1347,5 @@ static inline int32_t q_out(int32_t v)
 static void q_init(void)
 {
     q.seed = 0x1234567u;
+    q_master_reset();
 }

@@ -35,6 +35,11 @@ enum {
     QP_SQ_LEN, QP_SQ_GATE, QP_SQ_SW,
     QP_SQ0, QP_SQ1, QP_SQ2, QP_SQ3, QP_SQ4, QP_SQ5, QP_SQ6, QP_SQ7,
     QP_SQ8, QP_SQ9, QP_SQ10, QP_SQ11, QP_SQ12, QP_SQ13, QP_SQ14, QP_SQ15,
+    /* 1.4: the room's decay, damping, feedback and tone; the master effects (drive, EQ, chorus, compressor, width) */
+    QP_REV_DEC, QP_REV_DAMP, QP_DLY_FB, QP_DLY_TONE,
+    QP_REV_SIZE, QP_REV_PRE, QP_DLY_MODE,
+    QP_KEY, QP_SCALE, QP_TRANSP,                /* the keyboard in a key: the pads snap to the scale; TRANSPOSE shifts it all */
+    QP_X_DRIVE, QP_X_BASS, QP_X_TREB, QP_X_CHR, QP_X_CHRATE, QP_X_CHRDEP, QP_X_COMP, QP_X_WIDTH,
     QP_N
 };
 #define QD_NAME 12
@@ -44,7 +49,7 @@ typedef struct {
     char name[QD_NAME];
 } q_patch_t;
 
-enum { F_LVL, F_ONOFF, F_ENUM, F_SEMI, F_CENT, F_TIME, F_HZ, F_NOTE, F_OCT, F_RATE, F_PCT, F_INT, F_STEP };
+enum { F_LVL, F_ONOFF, F_ENUM, F_SEMI, F_CENT, F_TIME, F_HZ, F_NOTE, F_OCT, F_RATE, F_PCT, F_INT, F_STEP, F_WID };
 typedef struct {
     const char *label;                          /* at most 5 characters: a knob column */
     const char *long_label;                     /* the page's big line when it is turned */
@@ -62,7 +67,11 @@ static const char *const N_LFOW[] = {"SINE", "TRI", "SAW", "SQR", "S&H"};
 static const char *const N_ARP[] = {"OFF", "UP", "UP/DN", "DOWN", "RAND", "STEP", "PEDAL", "THUMB", "CONV", "DIVRG", "PLAYED", "SKIP"};
 static const char *const N_TRIG[] = {"SINGL", "MULTI"};
 static const char *const N_PHMOD[] = {"SWEEP", "S&H", "ENV", "LFO"};
-static const char *const N_DTIME[] = {"1/4", "1/8", "1/16", "1/32", "8T", "16T"};
+static const char *const N_DTIME[] = {"1/4", "1/8", "1/16", "1/32", "8T", "16T", "1/8.", "1/16.", "4T", "32T"};
+static const char *const N_RSIZE[] = {"ROOM", "PLATE", "HALL", "CATHDRL"};
+static const char *const N_DMODE[] = {"PINGPONG", "STEREO"};
+static const char *const N_KEY[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+static const char *const N_SCALE[] = {"OFF", "MAJOR", "MINOR", "DORIAN", "MIXOLYD", "PENT MAJ", "PENT MIN", "BLUES", "HARM MIN"};
 static const char *const N_TOUCH[] = {"OFF", "BEND", "BRILL"};
 static const char *const N_SYNC[] = {"OFF", "1/4", "1/8", "1/8T", "1/16", "1/16T", "1/32"};
 static const char *const N_CHBASS[] = {"OFF", "-1 OCT", "-2 OCT"};
@@ -137,11 +146,11 @@ static const q_desc_t QD[QP_N] = {
     [QP_SPLIT] = {"SPLIT", "BASS SPLIT", 48, 72, 60, F_NOTE, 0},
     [QP_REV] = {"REVRB", "REVERB SEND", 0, 127, 30, F_PCT, 0},
     [QP_DLY] = {"DELAY", "DELAY SEND", 0, 127, 0, F_PCT, 0},
-    [QP_DTIME] = {"TIME", "DELAY TIME", 0, 5, 1, F_ENUM, N_DTIME},
+    [QP_DTIME] = {"TIME", "DELAY TIME", 0, 9, 1, F_ENUM, N_DTIME},
     [QP_L_TOUCH] = {"TOUCH", "TOUCH SENSOR", 0, 2, 1, F_ENUM, N_TOUCH},
     [QP_PARA] = {"PARA", "PARAPHONIC", 0, 1, 0, F_ONOFF, 0},
     [QP_ARP_OCT] = {"RANGE", "SEQUENCER RANGE", 1, 3, 1, F_INT, 0},
-    [QP_CHORD] = {"CHORD", "CHORD (ONE KEY)", 0, 22, 0, F_ENUM, N_CHORD},
+    [QP_CHORD] = {"CHORD", "CHORD (ONE KEY)", 0, 23, 0, F_ENUM, N_CHORD},
     [QP_CHBASS] = {"CHBAS", "CHORD BASS (ROOT)", 0, 2, 0, F_ENUM, N_CHBASS},
     [QP_SYNC] = {"SYNC", "SYNC TO MIDI CLOCK", 0, 6, 4, F_ENUM, N_SYNC},
     [QP_B_WAVE] = {"WAVE", "BASS WAVEFORM", 0, 4, 0, F_ENUM, N_BWAVE},
@@ -186,6 +195,24 @@ static const q_desc_t QD[QP_N] = {
     [QP_SQ13] = {"STEP 14", "SEQUENCER STEP 14", -25, 24, 0, F_STEP, 0},
     [QP_SQ14] = {"STEP 15", "SEQUENCER STEP 15", -25, 24, 10, F_STEP, 0},
     [QP_SQ15] = {"STEP 16", "SEQUENCER STEP 16", -25, 24, -12, F_STEP, 0},
+    [QP_REV_DEC] = {"DECAY", "REVERB DECAY", 0, 127, 85, F_PCT, 0},
+    [QP_REV_DAMP] = {"DAMP", "REVERB DAMPING", 0, 127, 64, F_PCT, 0},
+    [QP_DLY_FB] = {"FDBK", "DELAY FEEDBACK", 0, 127, 64, F_PCT, 0},
+    [QP_DLY_TONE] = {"TONE", "DELAY TONE", 0, 127, 76, F_PCT, 0},
+    [QP_REV_SIZE] = {"SIZE", "REVERB SIZE", 0, 3, 1, F_ENUM, N_RSIZE},
+    [QP_REV_PRE] = {"PREDLY", "REVERB PRE-DELAY", 0, 127, 0, F_PCT, 0},
+    [QP_DLY_MODE] = {"MODE", "DELAY MODE", 0, 1, 0, F_ENUM, N_DMODE},
+    [QP_KEY] = {"KEY", "SCALE KEY", 0, 11, 0, F_ENUM, N_KEY},
+    [QP_SCALE] = {"SCALE", "SCALE LOCK", 0, 8, 0, F_ENUM, N_SCALE},
+    [QP_TRANSP] = {"TRNSP", "TRANSPOSE (SEMITONES)", -12, 12, 0, F_SEMI, 0},
+    [QP_X_DRIVE] = {"DRIVE", "MASTER DRIVE", 0, 127, 0, F_PCT, 0},
+    [QP_X_BASS] = {"BASS", "MASTER BASS (dB)", -12, 12, 0, F_SEMI, 0},
+    [QP_X_TREB] = {"TREBLE", "MASTER TREBLE (dB)", -12, 12, 0, F_SEMI, 0},
+    [QP_X_CHR] = {"CHORUS", "MASTER CHORUS MIX", 0, 127, 0, F_PCT, 0},
+    [QP_X_CHRATE] = {"RATE", "CHORUS RATE", 0, 127, 40, F_PCT, 0},
+    [QP_X_CHRDEP] = {"DEPTH", "CHORUS DEPTH", 0, 127, 64, F_PCT, 0},
+    [QP_X_COMP] = {"COMP", "MASTER COMPRESSOR", 0, 127, 0, F_PCT, 0},
+    [QP_X_WIDTH] = {"WIDTH", "STEREO WIDTH", 0, 127, 64, F_WID, 0},
     [QP_LFO_W] = {"SHAPE", "LFO WAVEFORM", 0, 4, 0, F_ENUM, N_LFOW},
 };
 
@@ -197,7 +224,7 @@ static const char *const SEC_SHORT[SEC_N] = {"BASS", "STRG", "POLY", "LEAD", "PH
 /* the page kinds: which button opens them (EDIT the sound, ENV the envelope, LFO the modulation, SCL the keys) and
  * what the screen draws over the knobs */
 enum { VZ_VOICES, VZ_VCF, VZ_ENV_AD, VZ_ENV_AR, VZ_ENV_ADSR, VZ_ENV_LEAD, VZ_VCO, VZ_MOD, VZ_KEYS, VZ_ARP, VZ_PH_IN,
-       VZ_PH_SWEEP, VZ_MIXER, VZ_FX, VZ_TUNE, VZ_ENS, VZ_WAVE };
+       VZ_PH_SWEEP, VZ_MIXER, VZ_FX, VZ_TUNE, VZ_ENS, VZ_WAVE, VZ_MASTER };
 enum { PK_EDIT, PK_ENV, PK_LFO, PK_SCL };
 typedef struct {
     uint8_t sec, kind, vz;
@@ -213,12 +240,14 @@ static const q_page_t PAGES[] = {
     {SEC_BASS, PK_ENV, VZ_ENV_AD, "ENVELOPE", {QP_B_DEC, QP_B_ENV, QP_B_SBVOL, QP_S_REL}},
     {SEC_BASS, PK_LFO, VZ_MOD, "LFO", {QP_B_LFO, QP_LFO, QP_LFO_W, _}},
     {SEC_BASS, PK_SCL, VZ_KEYS, "KEYBOARD", {QP_SPLIT, QP_CHORD, QP_CHBASS, QP_L_OCT}},
+    {SEC_BASS, PK_SCL, VZ_KEYS, "SCALE", {QP_KEY, QP_SCALE, QP_TRANSP, _}},
     {SEC_STR, PK_EDIT, VZ_VOICES, "VOICES", {QP_S_16, QP_S_8, QP_S_4, QP_PARA}},
     {SEC_STR, PK_EDIT, VZ_WAVE, "OSC", {QP_S_WAVE, QP_S_PW, _, _}},
     {SEC_STR, PK_EDIT, VZ_ENS, "ENSEMBLE", {QP_S_ENS, QP_S_TONE, QP_PH_S, QP_M_S}},
     {SEC_STR, PK_ENV, VZ_ENV_AR, "AR", {QP_S_ATK, QP_S_REL, _, QP_M_S}},
     {SEC_STR, PK_LFO, VZ_ENS, "CHORUS", {QP_S_ENS, QP_S_TONE, QP_LFO, QP_M_S}},
     {SEC_STR, PK_SCL, VZ_KEYS, "KEYBOARD", {QP_SPLIT, QP_CHORD, QP_CHBASS, QP_L_OCT}},
+    {SEC_STR, PK_SCL, VZ_KEYS, "SCALE", {QP_KEY, QP_SCALE, QP_TRANSP, _}},
     {SEC_POLY, PK_EDIT, VZ_VOICES, "VOICES", {QP_P_16, QP_P_8, QP_P_4, QP_PARA}},
     {SEC_POLY, PK_EDIT, VZ_WAVE, "OSC", {QP_P_WAVE, QP_P_PW, QP_P_PWM, QP_P_DET}},
     {SEC_POLY, PK_EDIT, VZ_VCF, "VCF", {QP_P_CUT, QP_P_RES, QP_P_ENV, QP_P_FMODE}},
@@ -226,6 +255,7 @@ static const q_page_t PAGES[] = {
     {SEC_POLY, PK_LFO, VZ_MOD, "LFO", {QP_LFO, QP_LFO_W, QP_P_LFO, QP_P_TREM}},
     {SEC_POLY, PK_LFO, VZ_MOD, "PITCH", {QP_P_VIB, QP_P_KBD, _, _}},
     {SEC_POLY, PK_SCL, VZ_KEYS, "KEYBOARD", {QP_SPLIT, QP_CHORD, QP_CHBASS, QP_L_OCT}},
+    {SEC_POLY, PK_SCL, VZ_KEYS, "SCALE", {QP_KEY, QP_SCALE, QP_TRANSP, _}},
     {SEC_LEAD, PK_EDIT, VZ_VCO, "VCO", {QP_L_WAVE, QP_L_VCO2, QP_L_INT, QP_L_DET}},
     {SEC_LEAD, PK_EDIT, VZ_VCO, "MIX", {QP_L_W2, QP_L_SYNC, QP_L_SUB, QP_L_NOISE}},
     {SEC_LEAD, PK_EDIT, VZ_VCF, "VCF", {QP_L_CUT, QP_L_RES, QP_L_ENV, QP_L_PWM}},
@@ -234,6 +264,7 @@ static const q_page_t PAGES[] = {
     {SEC_LEAD, PK_LFO, VZ_MOD, "VIBRATO", {QP_L_VIB, QP_L_VDEL, QP_L_TRILL, QP_L_TOUCH}},
     {SEC_LEAD, PK_LFO, VZ_MOD, "LFO", {QP_LFO, QP_LFO_W, _, _}},
     {SEC_LEAD, PK_SCL, VZ_KEYS, "PLAY", {QP_L_2V, QP_L_POR1, QP_L_POR2, QP_L_TRIG}},
+    {SEC_LEAD, PK_SCL, VZ_KEYS, "SCALE", {QP_KEY, QP_SCALE, QP_TRANSP, _}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "SEQUENCER", {QP_ARP, QP_TRSPD, QP_SYNC, QP_ARP_OCT}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "GATE", {QP_SQ_LEN, QP_SQ_GATE, QP_SQ_SW, _}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "STEPS 1-4", {QP_SQ0, QP_SQ1, QP_SQ2, QP_SQ3}},
@@ -244,6 +275,11 @@ static const q_page_t PAGES[] = {
     {SEC_PHAS, PK_EDIT, VZ_PH_SWEEP, "SWEEP", {QP_PH_SPD, QP_PH_DEP, QP_PH_RES, QP_PH_MOD}},
     {SEC_MIX, PK_EDIT, VZ_MIXER, "OUTPUT MIXER", {QP_M_B, QP_M_S, QP_M_P, QP_M_L}},
     {SEC_MIX, PK_EDIT, VZ_FX, "ROOM", {QP_REV, QP_DLY, QP_DTIME, QP_SPLIT}},
+    {SEC_MIX, PK_EDIT, VZ_FX, "REVERB", {QP_REV, QP_REV_DEC, QP_REV_DAMP, QP_REV_SIZE}},
+    {SEC_MIX, PK_EDIT, VZ_FX, "ROOM 2", {QP_REV_PRE, QP_DLY_MODE, _, _}},
+    {SEC_MIX, PK_EDIT, VZ_FX, "DELAY", {QP_DLY, QP_DTIME, QP_DLY_FB, QP_DLY_TONE}},
+    {SEC_MIX, PK_EDIT, VZ_MASTER, "MASTER", {QP_X_DRIVE, QP_X_BASS, QP_X_TREB, QP_X_COMP}},
+    {SEC_MIX, PK_EDIT, VZ_MASTER, "CHORUS", {QP_X_CHR, QP_X_CHRATE, QP_X_CHRDEP, QP_X_WIDTH}},
 };
 #undef _
 #define NPAGES (sizeof PAGES / sizeof PAGES[0])

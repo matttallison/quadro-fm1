@@ -93,6 +93,26 @@ wait 300
 shot steps-2.png
 tap PLAY
 wait 600
+# the master effects page, with a little EQ and drive
+midi C0 00 00
+wait 300
+tap GLO
+tap GLO
+tap GLO
+tap GLO
+tap GLO
+tap GLO
+turn K1 20
+turn K2 3
+turn K2 3
+turn K3 -2
+turn K3 -2
+turn K4 10
+wait 400
+shot master.png
+tap GLO
+wait 300
+shot chorus.png
 # SETUP: HOME held
 tap HOME
 press HOME

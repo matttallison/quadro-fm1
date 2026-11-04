@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* QUADRO: the 88 factory programs (the original had 16 programmable voices). Each starts from the defaults
+/* QUADRO: the 89 factory programs (the original had 16 programmable voices). Each starts from the defaults
  * (q_params.c QD[].def) and sets what makes it; a list of (parameter, value), ended by 0xFF. */
 typedef struct {
     const char *name;
@@ -8,7 +8,7 @@ typedef struct {
 #define END 0xFF
 #define NEG(v) ((uint8_t)(int8_t)(v))
 
-static const q_factory_t FACTORY[88] = {
+static const q_factory_t FACTORY[89] = {
     {"QUADRO", {QP_B_EB16, 1, QP_B_EB8, 1, QP_B_CUT, 46, QP_B_RES, 40, QP_B_DEC, 86,
                 QP_S_8, 1, QP_S_4, 1, QP_S_ATK, 56, QP_S_REL, 84, QP_M_S, 104,
                 QP_P_8, 1, QP_P_4, 0, QP_M_P, 70, QP_P_CUT, 44, QP_P_ENV, 70,
@@ -335,6 +335,11 @@ static const q_factory_t FACTORY[88] = {
     {"CONVERGE", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0, QP_L_WAVE, 0, QP_L_VCO2, 0, QP_L_CUT, 70, QP_L_RES, 30, QP_L_ENV, 60, QP_L_A, 0, QP_L_DEC, 60, QP_L_R, 30, QP_M_L, 112, QP_PH_S, 0, QP_REV, 30, QP_ARP, 8, QP_ARP_OCT, 2, QP_TRSPD, 68, QP_SQ_GATE, 70, END}},
     {"MAJ9 PAD", {QP_B_EB16, 0, QP_S_8, 1, QP_S_4, 1, QP_S_ATK, 70, QP_S_REL, 90, QP_S_ENS, 110, QP_M_S, 100, QP_P_8, 0, QP_M_P, 0, QP_M_L, 0, QP_CHORD, 18, QP_PH_S, 1, QP_REV, 50, END}},
     {"DOM9 STAB", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_CHORD, 17, QP_P_8, 1, QP_P_4, 1, QP_P_CUT, 44, QP_P_RES, 20, QP_P_ENV, 80, QP_P_A, 0, QP_P_D, 96, QP_P_S, 70, QP_P_R, 40, QP_M_P, 120, QP_M_L, 0, QP_PH_S, 0, QP_REV, 24, END}},
+    /* ---- a basic patch to start a sound from (1.4): the poly on its own, a saw, the filter open, no effects. Turn a
+     * section's level up on HOME, or a footage on, and it sounds. */
+    {"INIT", {QP_B_EB16, 0, QP_B_EB8, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_M_L, 0, QP_P_8, 1, QP_P_4, 0, QP_P_WAVE, 0,
+              QP_P_CUT, 110, QP_P_RES, 0, QP_P_ENV, 0, QP_P_A, 0, QP_P_D, 100, QP_P_S, 127, QP_P_R, 40, QP_M_P, 110,
+              QP_PH_S, 0, QP_REV, 0, QP_DLY, 0, END}},
 };
 
 static void q_factory(q_patch_t *p, uint32_t k)

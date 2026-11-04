@@ -90,6 +90,32 @@ static double beat_depth(int w0, int w1)          /* the short-term level's swin
 }
 
 
+/* a note held for hold_s, then released; stereo kept: returns the energy (rms) in [t0, t1) s and the side / mid ratio */
+static double tail_run(const int *kv, int note, double hold_s, double t0, double t1, double *side, double *crest)
+{
+    int k, blocks = 3 * FS / Q_BLK, i;
+    double e = 0, sd = 0, md = 0, pk = 0, all = 0;
+    long n = 0, na = 0;
+    patch(kv);
+    q_post(QE_ON, note);
+    for (k = 0; k < blocks; k++) {
+        int32_t o[2 * Q_BLK];
+        double t = (double)k * Q_BLK / FS;
+        if (t >= hold_s && t < hold_s + (double)Q_BLK / FS) q_post(QE_OFF, note);
+        memset(o, 0, sizeof o);
+        q_block(o);
+        for (i = 0; i < Q_BLK; i++) {
+            double l = o[2 * i], r = o[2 * i + 1], m = (l + r) / 2;
+            if (fabs(l) > pk) pk = fabs(l);
+            all += l * l, na++;
+            if (t >= t0 && t < t1) { e += m * m; n++; sd += (l - r) * (l - r) / 4; md += m * m; }
+        }
+    }
+    if (side) *side = sqrt(sd / (md + 1));
+    if (crest) *crest = pk / (sqrt(all / na) + 1);
+    return sqrt(e / (n + 1));
+}
+
 /* the lead's STEP sequencer: what notes sounded (a bit mask of 60+0..24), how many blocks were silent, over 3 s */
 static void seq_run(const int *kv, int *notes, int *quiet, int *total)
 {
@@ -400,6 +426,61 @@ int main(void)
             for (i = 0; i < Q_NV; i++) on += q.v[i].on;
             check("CHORD shapes sound all their notes", on == CH[t].notes, "chord %.0f: %.0f voices (want %.0f)", CH[t].c, on, CH[t].notes);
         }
+    }
+    printf("the room and the master effects\n");
+    {
+        int base[] = {QP_P_8, 1, QP_P_WAVE, 0, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_P_R, 20, QP_REV, 100, QP_M_P, 100, -1};
+        int lg[sizeof base / sizeof base[0] + 4], sh[sizeof base / sizeof base[0] + 4];
+        double a, b;
+        memcpy(lg, base, sizeof base); lg[sizeof base / sizeof base[0] - 1] = QP_REV_DEC; lg[sizeof base / sizeof base[0]] = 127; lg[sizeof base / sizeof base[0] + 1] = -1;
+        memcpy(sh, base, sizeof base); sh[sizeof base / sizeof base[0] - 1] = QP_REV_DEC; sh[sizeof base / sizeof base[0]] = 10; sh[sizeof base / sizeof base[0] + 1] = -1;
+        a = tail_run(lg, 60, 0.3, 1.2, 1.7, 0, 0); b = tail_run(sh, 60, 0.3, 1.2, 1.7, 0, 0);
+        check("REVERB DECAY lengthens the tail", a > b * 2, "tail %.0f (short %.0f)", a, b, 0);
+        {
+            int d0[] = {QP_P_8, 1, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_P_R, 20, QP_DLY, 120, QP_DTIME, 1, QP_DLY_FB, 120, QP_M_P, 100, -1};
+            int d1[] = {QP_P_8, 1, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_P_R, 20, QP_DLY, 120, QP_DTIME, 1, QP_DLY_FB, 0, QP_M_P, 100, -1};
+            a = tail_run(d0, 60, 0.1, 1.6, 2.4, 0, 0); b = tail_run(d1, 60, 0.1, 1.6, 2.4, 0, 0);
+            check("DELAY FEEDBACK keeps the echoes going", a > b * 3 + 1, "late echoes %.0f (none %.0f)", a, b, 0);
+        }
+    }
+    {
+        int sine[] = {QP_P_8, 1, QP_P_WAVE, 4, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_M_P, 100, -1};
+        int drv[] = {QP_P_8, 1, QP_P_WAVE, 4, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_M_P, 100, QP_X_DRIVE, 110, -1};
+        double a, b;
+        patch(sine); render(69); a = hr(440, 3);
+        patch(drv); render(69); b = hr(440, 3);
+        check("master DRIVE adds harmonics", b > a + 0.1, "h3 %.2f (off %.2f)", b, a, 0);
+    }
+    {
+        int saw[] = {QP_P_8, 1, QP_P_WAVE, 0, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_M_P, 100, -1};
+        int lo[] = {QP_P_8, 1, QP_P_WAVE, 0, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_M_P, 100, QP_X_BASS, 12, -1};
+        int hi[] = {QP_P_8, 1, QP_P_WAVE, 0, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_M_P, 100, QP_X_TREB, 12, -1};
+        double l0, l1, h0, h1;
+        patch(saw); render(48); l0 = band(100, 260); h0 = band(6000, 9000);
+        patch(lo); render(48); l1 = band(100, 260);
+        patch(hi); render(48); h1 = band(6000, 9000);
+        check("master BASS +12 lifts the lows", l1 > l0 * 4, "low band x%.1f", l1 / (l0 + 1e-9), 0, 0);
+        check("master TREBLE +12 lifts the highs", h1 > h0 * 4, "high band x%.1f", h1 / (h0 + 1e-9), 0, 0);
+    }
+    {
+        int ch[] = {QP_P_8, 1, QP_P_WAVE, 4, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_M_P, 100, QP_X_CHR, 110, QP_X_CHRDEP, 100, QP_X_CHRATE, 50, -1};
+        int no[] = {QP_P_8, 1, QP_P_WAVE, 4, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_M_P, 100, -1};
+        int w0[] = {QP_P_8, 1, QP_P_WAVE, 4, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_M_P, 100, QP_X_CHR, 110, QP_X_CHRDEP, 100, QP_X_WIDTH, 0, -1};
+        double a, b, s0, s1, s2;
+        patch(no); render(69); a = beat_depth(FS / 2, N);
+        patch(ch); render(69); b = beat_depth(FS / 2, N);
+        check("master CHORUS moves the sound", b > a + 0.05, "swing %.2f (off %.2f)", b, a, 0);
+        tail_run(ch, 69, 3.0, 0.5, 2.5, &s1, 0); tail_run(w0, 69, 3.0, 0.5, 2.5, &s0, 0); tail_run(no, 69, 3.0, 0.5, 2.5, &s2, 0);
+        check("WIDTH 0 is mono, the chorus is wide", s0 < 0.02 && s1 > 0.05 && s2 < 0.02, "side: width0 %.3f chorus %.3f dry %.3f", s0, s1, s2);
+    }
+    {   /* the compressor squeezes the difference between a loud level and a quiet one */
+        int lo0[] = {QP_P_8, 1, QP_P_WAVE, 0, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_M_P, 50, -1};
+        int hi0[] = {QP_P_8, 1, QP_P_WAVE, 0, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_M_P, 120, -1};
+        int lo1[] = {QP_P_8, 1, QP_P_WAVE, 0, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_M_P, 50, QP_X_COMP, 127, -1};
+        int hi1[] = {QP_P_8, 1, QP_P_WAVE, 0, QP_P_CUT, 127, QP_P_A, 0, QP_P_S, 127, QP_M_P, 120, QP_X_COMP, 127, -1};
+        double r0 = tail_run(hi0, 48, 5, 1, 2.5, 0, 0) / (tail_run(lo0, 48, 5, 1, 2.5, 0, 0) + 1e-9);
+        double r1 = tail_run(hi1, 48, 5, 1, 2.5, 0, 0) / (tail_run(lo1, 48, 5, 1, 2.5, 0, 0) + 1e-9);
+        check("COMP squeezes loud against quiet", r1 < r0 * 0.8, "loud / quiet x%.2f (off x%.2f)", r1, r0, 0);
     }
     printf("%s\n", bad ? "QUADRO features: FAIL" : "QUADRO features: all ok");
     return bad != 0;

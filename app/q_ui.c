@@ -35,7 +35,7 @@ static const uint16_t SEC_COL[SEC_N] = {RGB(236, 84, 60), RGB(244, 180, 52), RGB
 static const uint16_t SEC_DARK[SEC_N] = {RGB(70, 22, 16), RGB(72, 52, 10), RGB(20, 62, 34), RGB(16, 44, 82),
                                          RGB(56, 30, 74), RGB(60, 60, 64)};
 
-#define NPROG 88u
+#define NPROG 89u
 static q_patch_t progs[NPROG];                  /* the programs (flash: app.c) */
 
 static struct {
@@ -128,6 +128,7 @@ static void fmt_value(uint32_t id, int32_t v, char *b)
     case F_ONOFF: cat(b, v ? "ON" : "OFF"); break;
     case F_ENUM: cat(b, d->names[q_clampi(v, d->min, d->max) - d->min]); break;
     case F_SEMI: num(b, v, 1); break;
+    case F_WID: cat(num(b, v * 100 / 64, 0), "%"); break;
     case F_STEP: if (v <= -25) cat(b, "REST"); else num(b, v, 1); break;
     case F_CENT: cat(num(b, v, id != QP_L_DET), "c"); break;
     case F_OCT: num(b, v, 1); break;
@@ -214,8 +215,17 @@ static void param_set(uint32_t id, int32_t v)
     const q_desc_t *d = &QD[id];
     v = q_clampi(v, d->min, d->max);
     if (qp.v[id] != v) {
+        int32_t was = qp.v[id];
         qp.v[id] = (int8_t)v;
         ui.edited = 1;
+        if (!was && v) {                        /* a section brought in sounds: its level up, or its first voice on */
+            if ((id == QP_S_16 || id == QP_S_8 || id == QP_S_4 || id == QP_B_SB16 || id == QP_B_SB8) && !qp.v[QP_M_S]) qp.v[QP_M_S] = 100;
+            if ((id == QP_P_16 || id == QP_P_8 || id == QP_P_4) && !qp.v[QP_M_P]) qp.v[QP_M_P] = 100;
+            if ((id == QP_B_EB16 || id == QP_B_EB8) && !qp.v[QP_M_B]) qp.v[QP_M_B] = 100;
+        }
+        if (!was && v && id == QP_M_S && !(qp.v[QP_S_16] | qp.v[QP_S_8] | qp.v[QP_S_4] | qp.v[QP_B_SB16] | qp.v[QP_B_SB8])) qp.v[QP_S_8] = 1;
+        if (!was && v && id == QP_M_P && !(qp.v[QP_P_16] | qp.v[QP_P_8] | qp.v[QP_P_4])) qp.v[QP_P_8] = 1;
+        if (!was && v && id == QP_M_B && !(qp.v[QP_B_EB16] | qp.v[QP_B_EB8] | qp.v[QP_B_SB16] | qp.v[QP_B_SB8])) qp.v[QP_B_EB16] = 1;
     }
     ui.pop_param = (int16_t)id;
     ui.pop_ms = QMS + 1500u;
@@ -283,8 +293,8 @@ static int section_on(uint32_t s)               /* a section that can sound */
 {
     switch (s) {
     case SEC_BASS: return q_bass_on() && (P(QP_B_EB16) | P(QP_B_EB8) ? P(QP_M_B) > 0 : P(QP_M_S) > 0);
-    case SEC_STR: return (P(QP_S_8) | P(QP_S_4)) && P(QP_M_S) > 0;
-    case SEC_POLY: return (P(QP_P_8) | P(QP_P_4)) && P(QP_M_P) > 0;
+    case SEC_STR: return (P(QP_S_16) | P(QP_S_8) | P(QP_S_4)) && P(QP_M_S) > 0;
+    case SEC_POLY: return (P(QP_P_16) | P(QP_P_8) | P(QP_P_4)) && P(QP_M_P) > 0;
     case SEC_LEAD: return P(QP_M_L) > 0;
     case SEC_PHAS: return P(QP_PH_B) | P(QP_PH_S) | P(QP_PH_P) | P(QP_PH_L);
     default: return 1;
@@ -822,6 +832,28 @@ static void vz_fx(void)
     fmt_value(QP_DTIME, P(QP_DTIME), b);
     text_r(234, 70, b, C_LBL, C_BG);
 }
+static void vz_master(void)
+{
+    uint16_t c = SEC_COL[SEC_MIX];
+    int32_t lo = P(QP_X_BASS), hi = P(QP_X_TREB), x, y0 = 40, i;
+    cv_rect(6, y0, 150, 1, C_RULE);                                  /* the EQ: the two shelves, 0 dB in the middle */
+    for (x = 0; x < 150; x++) {
+        int32_t u = x * 1024 / 150, t = u * u / 1024 * (3 * 1024 - 2 * u) / 1024;   /* smoothstep, 0..1024 */
+        int32_t db = (lo * (1024 - t) + hi * t) / 1024, y = y0 - db * 30 / 12;
+        cv_rect(6 + x, y < y0 ? y : y0, 1, (y < y0 ? y0 - y : y - y0) + 1, c);
+    }
+    cv_text_on(6, 4, &FONT_S, "BASS / TREBLE", C_LBL, C_BG);
+    {   /* four small meters: DRIVE, COMP, CHORUS, WIDTH */
+        static const uint8_t ID[4] = {QP_X_DRIVE, QP_X_COMP, QP_X_CHR, QP_X_WIDTH};
+        static const char *const NM[4] = {"DR", "CP", "CH", "WD"};
+        for (i = 0; i < 4; i++) {
+            int32_t v = P(ID[i]), h = (i == 3 ? v * 127 / 127 : v) * 50 / 127;
+            cv_rect(170 + i * 17, 14, 6, 50, C_PANEL);
+            cv_rect(170 + i * 17, 64 - h, 6, h, c);
+            text_c(173 + i * 17, 70, NM[i], C_LBL, C_BG, 0);
+        }
+    }
+}
 static void vz_tune(void)
 {
     int32_t t = P(QP_B_TUNE), x = 120 + t * 2;
@@ -931,6 +963,7 @@ static void draw_viz(void)
     case VZ_PH_SWEEP: vz_ph_sweep(); break;
     case VZ_MIXER: vz_mixer(); break;
     case VZ_FX: vz_fx(); break;
+    case VZ_MASTER: vz_master(); break;
     case VZ_TUNE: vz_tune(); break;
     case VZ_ENS: vz_ens(); break;
     default: break;
@@ -1129,7 +1162,20 @@ static void ui_select(int32_t d)                /* SELECT: the phaser's sweep sp
 }
 
 /* the keys: F3 .. G5 (key 0 = F3) at the octave */
-static uint32_t key_note(uint32_t k) { return (uint32_t)q_clampi(53 + ui.oct * 12 + (int32_t)k, 0, 127); }
+/* the keyboard in a key: a pad's note snaps to the nearest note of the scale (a tie goes down), then TRANSPOSE */
+static uint32_t key_note(uint32_t k)
+{
+    static const uint16_t SCALES[9] = {0xFFF, 0xAB5, 0x5AD, 0x6AD, 0x6B5, 0x295, 0x4A9, 0x4E9, 0x9AD};   /* bit r: degree r (from the key) is in */
+    int32_t n = 53 + ui.oct * 12 + (int32_t)k, sc = qp.v[QP_SCALE];
+    if (sc > 0 && sc < 9) {
+        int32_t key = qp.v[QP_KEY], r = ((n - key) % 12 + 12) % 12, d;
+        for (d = 0; d < 7; d++) {
+            if (SCALES[sc] >> ((r - d + 12) % 12) & 1u) { n -= d; break; }
+            if (SCALES[sc] >> ((r + d) % 12) & 1u) { n += d; break; }
+        }
+    }
+    return (uint32_t)q_clampi(n + qp.v[QP_TRANSP], 0, 127);
+}
 static void q_midi_key(uint32_t note, uint32_t vel, int on);   /* app.c: the key out over MIDI too */
 static uint8_t key_sent[NKEYS];                 /* the note each key sent (an octave change between down and up) */
 static void key_down_v(uint32_t k, uint32_t vel) { ui.keys |= 1u << k; key_sent[k] = (uint8_t)key_note(k); q_post(QE_ON, key_sent[k]); q_midi_key(key_sent[k], vel, 1); }

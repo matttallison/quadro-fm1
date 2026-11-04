@@ -10,6 +10,7 @@
 - Poly keeps to 3 octaves above the bass split, with no overlap.
 - TOUCH > BEND now bends up to one semitone (was two); the MIDI pitch wheel is unchanged at +-2.
 - Vibrato is half as deep in every program (full depth is now half a semitone, as on the original), and TOUCH defaults to OFF for new sounds; programs that set it keep it. This replaces the FUSION LD-only fix.
+- PHASED STR: a slower, shallower phaser sweep with less resonance (it wobbled).
 
 ## 1.5
 

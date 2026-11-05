@@ -49,8 +49,8 @@ key 11 up
 key 7 up
 key 0 up
 wait 800
-# CHORD+BASS (57): one key, a chord and its bass
-midi C0 38 00
+# CHORD+BASS: one key, a chord and its bass
+midi C0 44 00
 wait 300
 tap HOME
 wait 200
@@ -59,8 +59,8 @@ wait 600
 shot chord.png
 key 7 up
 wait 600
-# BERLIN SEQ (46): the sequencer on a held chord, HOLD on
-midi C0 2D 00
+# BERLIN SEQ: the sequencer on a held chord, HOLD on
+midi C0 3A 00
 wait 300
 tap PLAY
 tap ARP
@@ -75,8 +75,8 @@ wait 2500
 shot sequencer.png
 tap PLAY
 wait 600
-# ACID STEP (81): the step sequencer's pattern
-midi C0 50 00
+# ACID STEP: the step sequencer's pattern
+midi C0 5C 00
 wait 300
 tap PLAY
 tap ARP

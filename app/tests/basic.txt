@@ -38,7 +38,7 @@ tap GLO
 tap HOME
 wait 200
 # MIDI in: program change (CHORD+BASS), a note, the bend, the mod wheel
-midi C0 38 00
+midi C0 44 00
 wait 200
 peakreset
 midi 90 3C 64

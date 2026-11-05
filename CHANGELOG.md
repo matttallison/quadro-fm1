@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.8
+
+- Newer FM-1 units (flash chip UC25HQ80, ID B36014) are accepted: programs and settings save and the updater installs on them. (fm1-base updated.)
+- firmware.json for The Firmware Hub and other firmware lists.
+
 ## 1.7
 
 - Blank templates, programs 101-105: INIT, INIT BASS, INIT STRINGS, INIT LEAD and INIT ALL (every section on, flat and dry).

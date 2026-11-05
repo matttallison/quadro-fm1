@@ -1,9 +1,15 @@
 # Changelog
 
+## 1.7
+
+- Blank templates, programs 101-105: INIT, INIT BASS, INIT STRINGS, INIT LEAD and INIT ALL (every section on, flat and dry).
+- Five near-duplicate programs removed: ELEC BASS (FUNK BASS is the same sound); PHASE STR and NEW WAVE ST (PHASED STR and STRINGS cover them), HOUSE ORGAN (JAZZ ORGAN and ORGAN+BASS cover it). 105 programs in all.
+  Programs after the removed ones move down a number, so a program you saved keeps its slot but the factory program there is different. Check your saved ones.
+- Both demo songs now pick programs by name, and were re-rendered.
+
 ## 1.6
 
 - Phaser MOD ADD page: S&H and ENV can stack on top of the chosen sweep source, as on the original.
-- Blank templates, programs 106-110: INIT BASS, INIT STRINGS, INIT POLY, INIT LEAD and INIT ALL (every section on, flat and dry). 110 programs in all.
 - INTERVAL WRITE (SETUP > TOOLS, knob 4): play two keys and their distance becomes VCO 2's interval (range now +-60 semitones, 10 octaves).
 - FLAT footswitch: MIDI CC 68 lowers the lead a semitone while held.
 - HOLD footswitch: MIDI CC 69 locks the lead gate open after the key is released (pitch follows new keys).

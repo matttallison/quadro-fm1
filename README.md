@@ -16,7 +16,7 @@ each knob does as you turn it.
 - **A sequencer** over the keys you hold (up, up/down, down, random, pedal, thumb, converge, diverge, as played, skip, a 16-step pattern; 1–4 octaves, with latch, and accent and tie on each step). It syncs to MIDI clock and can
   send clock too.
 - **Touch:** the FM-1's pressure-sensing keys bend the lead or open its filter, with adjustable sensitivity.
-- **110 programs:** the classics, what only the Quadra could do, paraphonic, sequences, chords and one-finger band
+- **105 programs:** the classics, what only the Quadra could do, paraphonic, sequences, chords and one-finger band
   sounds. See [the program list](app/docs/PRESETS.md).
 - **MIDI** in and out over USB, Bluetooth and TRS: velocity to level and cutoff, a channel for each section, scale lock on MIDI keys.
 - **Master effects, scale lock, analog drift, lead unison,** tap tempo, compare and random.
@@ -61,7 +61,7 @@ Read [the manual](app/docs/MANUAL.md). In short: **ALGO** picks the section, **E
     cd quadro-fm1
     ./build.sh                    # app/build/quadro.fwsc
     ./build.sh --release 1.0      # app/build/quadro-1.0.fwsc
-    sh tests/run_tests.sh         # the sound of all 110 programs, then the host simulator
+    sh tests/run_tests.sh         # the sound of all 105 programs, then the host simulator
 
 The firmware build needs the JieLi toolchain (`JIELI_TOOLCHAIN`) and the AC79 SDK (`AC79_SDK`). See
 [fm1-base's README](https://github.com/charlesvestal/fm1-base). The tests only need a C compiler and Python 3.
@@ -75,7 +75,7 @@ FM-1 builder).
 | `app/q_synth.c` | The sound: the four sections, ensemble, phaser, mixer |
 | `app/q_fx.c` | The reverb and the ping-pong delay |
 | `app/q_params.c` | The patch: every parameter, its range, its page |
-| `app/q_presets.c` | The 110 factory programs |
+| `app/q_presets.c` | The 105 factory programs |
 | `app/q_ui.c` | The panel and the screen |
 | `app/app.c` | The glue to the platform: keys, MIDI, clock, saving |
 | `tests/` | The audio tests and the test runner |

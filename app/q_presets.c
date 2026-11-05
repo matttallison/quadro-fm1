@@ -8,7 +8,7 @@ typedef struct {
 #define END 0xFF
 #define NEG(v) ((uint8_t)(int8_t)(v))
 
-static const q_factory_t FACTORY[110] = {
+static const q_factory_t FACTORY[105] = {
     /* ---- 1-16 (1.5): the sixteen factory voices of the ARP Quadra, from its revised patch sheets. The sheets show
      * the switches (which footages, which controls variable, the phaser routing, the lead's waveforms); the sliders
      * were left midway, so a variable control is 64 and a preset one a fixed value. */
@@ -35,9 +35,6 @@ static const q_factory_t FACTORY[110] = {
                 QP_PH_S, 1, QP_PH_SPD, 26, QP_REV, 36, END}},
     {"STRINGS", {QP_B_EB16, 0, QP_S_8, 1, QP_S_4, 1, QP_S_ATK, 60, QP_S_REL, 88, QP_M_S, 116,
                  QP_P_8, 0, QP_M_P, 0, QP_M_L, 0, QP_PH_S, 0, QP_REV, 44, QP_M_S, 127, END}},
-    {"PHASE STR", {QP_B_EB16, 0, QP_S_8, 1, QP_S_4, 1, QP_S_ATK, 64, QP_S_REL, 92, QP_M_S, 116,
-                   QP_P_8, 0, QP_M_P, 0, QP_M_L, 0, QP_PH_S, 1, QP_PH_SPD, 14, QP_PH_DEP, 110, QP_PH_RES, 70,
-                   QP_REV, 40, QP_M_S, 127, END}},
     {"ORCHESTRA", {QP_B_EB16, 0, QP_B_SB16, 1, QP_B_SBVOL, 110, QP_S_8, 1, QP_S_4, 0, QP_S_ATK, 58, QP_S_REL, 84,
                    QP_M_S, 112, QP_P_8, 1, QP_P_4, 1, QP_P_CUT, 36, QP_P_ENV, 64, QP_P_A, 50, QP_P_R, 80, QP_M_P, 72,
                    QP_M_L, 0, QP_PH_S, 0, QP_REV, 50, QP_M_S, 127, QP_M_P, 102, END}},
@@ -53,9 +50,6 @@ static const q_factory_t FACTORY[110] = {
     {"VIBES", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_HOLLOW, 1, QP_P_8, 0, QP_P_4, 1, QP_P_CUT, 40,
                QP_P_ENV, 50, QP_P_A, 0, QP_P_D, 100, QP_P_S, 0, QP_P_R, 86, QP_P_TREM, 70, QP_LFO, 70, QP_M_P, 116,
                QP_M_L, 0, QP_PH_S, 0, QP_REV, 50, QP_M_P, 127, END}},
-    {"ELEC BASS", {QP_B_EB16, 1, QP_B_EB8, 1, QP_B_CUT, 42, QP_B_RES, 46, QP_B_ENV, 80, QP_B_DEC, 86,
-                   QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0, QP_M_L, 0, QP_M_B, 116, QP_SPLIT, 72,
-                   QP_PH_S, 0, QP_REV, 10, END}},
     {"FUNK BASS", {QP_B_EB16, 1, QP_B_EB8, 1, QP_B_CUT, 38, QP_B_RES, 80, QP_B_ENV, 100, QP_B_DEC, 84,
                    QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0, QP_M_L, 0, QP_M_B, 116, QP_SPLIT, 72,
                    QP_PH_S, 0, QP_REV, 8, END}},
@@ -173,9 +167,6 @@ static const q_factory_t FACTORY[110] = {
     {"HORROR SPLT", {QP_B_EB16, 1, QP_B_EB8, 0, QP_B_CUT, 30, QP_B_RES, 60, QP_B_ENV, 60, QP_B_DEC, 100, QP_SPLIT, 60,
                      QP_M_B, 124, QP_S_8, 1, QP_S_4, 1, QP_S_ATK, 72, QP_S_REL, 90, QP_S_TONE, 50, QP_M_S, 100,
                      QP_P_8, 0, QP_M_P, 0, QP_M_L, 0, QP_PH_S, 0, QP_DLY, 30, QP_DTIME, 1, QP_REV, 50, QP_M_S, 127, END}},
-    {"NEW WAVE ST", {QP_B_EB16, 0, QP_S_8, 1, QP_S_4, 1, QP_S_ATK, 40, QP_S_REL, 74, QP_S_ENS, 127, QP_S_TONE, 110,
-                     QP_M_S, 120, QP_P_8, 0, QP_M_P, 0, QP_M_L, 0, QP_PH_S, 1, QP_PH_SPD, 30, QP_PH_DEP, 80,
-                     QP_PH_RES, 30, QP_REV, 40, QP_M_S, 127, END}},
     {"SYNTHPOP", {QP_B_EB16, 0, QP_B_EB8, 1, QP_B_CUT, 50, QP_B_RES, 30, QP_B_ENV, 60, QP_B_DEC, 96, QP_SPLIT, 60,
                   QP_M_B, 116, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_M_P, 0,
                   QP_L_WAVE, 1, QP_L_VCO2, 1, QP_L_INT, 12, QP_L_DET, 3, QP_L_CUT, 62, QP_L_RES, 20, QP_L_ENV, 40,
@@ -233,9 +224,6 @@ static const q_factory_t FACTORY[110] = {
     {"CHORD STAB", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_CHORD, 4, QP_P_8, 1, QP_P_4, 1, QP_P_CUT, 40,
                     QP_P_RES, 50, QP_P_ENV, 90, QP_P_A, 0, QP_P_D, 80, QP_P_S, 34, QP_P_R, 62, QP_M_P, 116, QP_M_L, 0,
                     QP_PH_P, 1, QP_PH_S, 0, QP_PH_MOD, 2, QP_PH_DEP, 100, QP_DLY, 44, QP_DTIME, 2, QP_REV, 30, END}},
-    {"HOUSE ORGAN", {QP_B_EB16, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_CHORD, 9, QP_HOLLOW, 1, QP_P_8, 1, QP_P_4, 1,
-                     QP_P_CUT, 70, QP_P_RES, 10, QP_P_ENV, 40, QP_P_A, 0, QP_P_D, 60, QP_P_S, 20, QP_P_R, 34,
-                     QP_M_P, 120, QP_M_L, 0, QP_PH_S, 0, QP_REV, 36, END}},
     {"POWER 5THS", {QP_B_EB16, 0, QP_CHORD, 7, QP_S_8, 1, QP_S_4, 0, QP_S_ATK, 50, QP_S_REL, 70, QP_M_S, 90,
                     QP_P_8, 1, QP_P_4, 0, QP_P_CUT, 36, QP_P_RES, 30, QP_P_ENV, 80, QP_P_A, 20, QP_P_R, 50, QP_M_P, 110,
                     QP_M_L, 0, QP_PH_S, 1, QP_PH_SPD, 30, QP_REV, 40, END}},
@@ -364,9 +352,6 @@ static const q_factory_t FACTORY[110] = {
                    QP_M_L, 0, QP_PH_S, 0, QP_REV, 0, QP_DLY, 0, END}},
     {"INIT STRINGS", {QP_B_EB16, 0, QP_B_EB8, 0, QP_S_8, 1, QP_S_4, 0, QP_M_S, 110, QP_P_8, 0, QP_P_4, 0, QP_M_P, 0,
                       QP_M_L, 0, QP_PH_S, 0, QP_REV, 0, QP_DLY, 0, END}},
-    {"INIT POLY", {QP_B_EB16, 0, QP_B_EB8, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 1, QP_P_4, 0, QP_P_CUT, 110,
-                   QP_P_RES, 0, QP_P_ENV, 0, QP_P_A, 0, QP_P_D, 100, QP_P_S, 127, QP_P_R, 40, QP_M_P, 110, QP_M_L, 0,
-                   QP_PH_S, 0, QP_REV, 0, QP_DLY, 0, END}},
     {"INIT LEAD", {QP_B_EB16, 0, QP_B_EB8, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_P_4, 0, QP_M_P, 0,
                    QP_L_WAVE, 0, QP_L_VCO2, 0, QP_L_CUT, 100, QP_L_RES, 0, QP_L_ENV, 0, QP_L_A, 0, QP_L_VIB, 0,
                    QP_M_L, 110, QP_PH_S, 0, QP_REV, 0, QP_DLY, 0, END}},
@@ -378,7 +363,7 @@ static const q_factory_t FACTORY[110] = {
 
 static void q_factory(q_patch_t *p, uint32_t k)
 {
-    const q_factory_t *f = &FACTORY[k % (sizeof FACTORY / sizeof FACTORY[0])];
+    const q_factory_t *f = &FACTORY[k % (sizeof FACTORY / sizeof FACTORY[105])];
     uint32_t i;
     q_patch_init(p, f->name);
     for (i = 0; i + 1u < sizeof f->set && f->set[i] != END; i += 2u)

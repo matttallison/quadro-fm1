@@ -4,6 +4,8 @@
 # Play it into the FM-1 over USB or Bluetooth from any DAW or MIDI player (SETUP: MIDI channel OMNI or 1); send MIDI
 # clock too and the sequencer locks to the song's tempo. Also writes the event list the preview renderer reads.
 #   python3 tools/make_demo_mid.py OUT.mid [EVENTS.txt]
+import re
+import os
 import struct
 import sys
 
@@ -22,8 +24,11 @@ def chord(t, ns, d, v=96):
         note(t, n, d, v)
 
 
-def prog(t, p):
-    ev.append((t, 0, bytes([0xC0, p + 16])))   # (the Quadra's sixteen come first: 1-16)
+NAMES = re.findall(r'\n    \{"([^"]+)", \{', open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "q_presets.c")).read())
+
+
+def prog(t, name):
+    ev.append((t, 0, bytes([0xC0, NAMES.index(name)])))   # by name: the numbers move when programs are added or removed
 
 
 def cc(t, c, v):
@@ -59,7 +64,7 @@ ROOT = [57, 53, 60, 55]                          # one key a chord (CHORD + CH B
 t = 0
 
 # 1. QUADRO (program 1): the whole Quadra, split: bass, strings and poly chords, the lead singing on top
-prog(t, 0); reset(t); t += Q
+prog(t, "QUADRO"); reset(t); t += Q
 mel = [[(76, H), (74, Q), (72, Q)], [(72, H + Q), (69, Q)], [(67, Q), (69, Q), (72, H)], [(71, H), (74, H)]]
 for rep in range(2):
     for i in range(4):
@@ -72,7 +77,7 @@ for rep in range(2):
 t += 8 * BAR
 
 # 2. CHORD+BASS (57): one finger, a minor-seventh chord and its root on the bass
-t += Q; prog(t, 56); reset(t); t += Q
+t += Q; prog(t, "CHORD+BASS"); reset(t); t += Q
 rhythm = [(0, E + S), (E + S + S, S), (Q + E, E), (H + E, E), (H + Q, E), (H + Q + E, E)]
 for rep in range(2):
     for i in range(4):
@@ -82,20 +87,20 @@ for rep in range(2):
 t += 8 * BAR
 
 # 3. ONE FINGER (59): CHORD + CH BASS + PARA + the sequencer, the whole band from one key held
-t += Q; prog(t, 58); reset(t); t += Q
+t += Q; prog(t, "ONE FINGER"); reset(t); t += Q
 for i, n in enumerate([57, 53, 60, 55, 57, 53, 55, 57]):
     note(t + i * BAR, n, BAR - 20)
 t += 8 * BAR
 
 # 4. BERLIN SEQ (46): the lead's sequencer up and down over the chord held, the strings under it
-t += Q; prog(t, 45); reset(t); t += Q
+t += Q; prog(t, "BERLIN SEQ"); reset(t); t += Q
 for i in range(8):
     chord(t + i * BAR, [n - 3 if n > 60 else n for n in CHORDS[i % 4]] + [72 + (i % 2) * 2], BAR - 20)
     note(t + i * BAR, BASS[i % 4], BAR - 20)
 t += 8 * BAR
 
 # 5. SPACE LEAD (31): the touch sensor (pressure opens the filter), the mod wheel's vibrato, the bend, glide
-t += Q; prog(t, 30); reset(t); t += Q
+t += Q; prog(t, "SPACE LEAD"); reset(t); t += Q
 line = [(69, H), (72, H), (76, W), (74, H), (72, Q), (71, Q), (69, W),
         (64, H), (67, H), (72, W), (71, H + Q), (69, Q), (69, W)]
 x = t
@@ -112,7 +117,7 @@ for k, (n, d) in enumerate(line):
 t = x
 
 # 6. SPLIT FUNK (28): a funk bass under, clav stabs through the phaser over
-t += Q; prog(t, 27); reset(t); t += Q
+t += Q; prog(t, "SPLIT FUNK"); reset(t); t += Q
 fb = [(0, 45, S), (E, 45, S), (E + S, 57, S), (Q + S, 45, S), (H, 48, S), (H + S, 50, S), (H + E, 52, S), (H + Q + E, 43, S)]
 st = [(Q, (64, 69, 72)), (Q + E + S, (64, 69, 72)), (H + Q, (65, 69, 72)), (H + Q + E + S, (64, 67, 71))]
 for i in range(8):
@@ -124,13 +129,13 @@ for i in range(8):
 t += 8 * BAR
 
 # 7. ARENA STR (18): the ensemble, wide, with the phaser on the strings
-t += Q; prog(t, 17); reset(t); t += Q
+t += Q; prog(t, "ARENA STR"); reset(t); t += Q
 for i, c in enumerate([(57, 60, 64, 69), (53, 60, 65, 69), (48, 55, 64, 67), (55, 62, 67, 71)]):
     chord(t + i * 2 * BAR, [n + 12 if n < 60 else n for n in c], 2 * BAR - 20, 90)
 t += 8 * BAR
 
 # 8. THUNDER (67): the end, the string bass and the strings low and wide
-t += Q; prog(t, 66); reset(t); t += Q
+t += Q; prog(t, "THUNDER"); reset(t); t += Q
 note(t, 45, 3 * BAR); chord(t, (64, 69, 72, 76), 3 * BAR, 90)
 t += 4 * BAR + 2 * BAR                           # the release and the room
 

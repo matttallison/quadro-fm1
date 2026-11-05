@@ -1,6 +1,6 @@
 # QUADRO's programs
 
-105 factory programs. Turn PRESET to pick one; MIDI program change 0-104 picks 1-105. *Sections* are the parts that sound; *features* are the parts of QUADRO each one leans on. Every lead takes TOUCH (key pressure) as pitch bend unless it says TOUCH BRILL (pressure opens the filter).
+110 factory programs. Turn PRESET to pick one; MIDI program change 0-109 picks 1-110. *Sections* are the parts that sound; *features* are the parts of QUADRO each one leans on. Every lead takes TOUCH (key pressure) as pitch bend unless it says TOUCH BRILL (pressure opens the filter).
 
 ## 1-16: The Quadra's own sixteen
 
@@ -197,12 +197,17 @@ New in 1.3: the PEDAL and CONV sequencer modes, and the MAJ9 and DOM9 chords.
 | 103 | MAJ9 PAD | strings  | CHORD MAJ9 PHASER |
 | 104 | DOM9 STAB | poly  | CHORD DOM9 |
 
-## 105: Init
+## 105-110: Init
 
 | # | Program | Sections | Features |
 | --- | --- | --- | --- |
 | 105 | INIT | poly  | a plain saw to start a sound from |
+| 106 | INIT BASS | bass | the electric bass alone, flat and dry |
+| 107 | INIT STRINGS | strings | the strings alone |
+| 108 | INIT POLY | poly | the poly alone, as INIT |
+| 109 | INIT LEAD | lead | a saw lead alone |
+| 110 | INIT ALL | all four | every section on at an even level |
 
 ## Your own
 
-Edit any program and press SAVE, pick the slot with PRESET, and SAVE again. SETUP > FACT puts all 105 back.
+Edit any program and press SAVE, pick the slot with PRESET, and SAVE again. SETUP > FACT puts all 110 back.

@@ -35,7 +35,7 @@ static const uint16_t SEC_COL[SEC_N] = {RGB(236, 84, 60), RGB(244, 180, 52), RGB
 static const uint16_t SEC_DARK[SEC_N] = {RGB(70, 22, 16), RGB(72, 52, 10), RGB(20, 62, 34), RGB(16, 44, 82),
                                          RGB(56, 30, 74), RGB(60, 60, 64)};
 
-#define NPROG 105u
+#define NPROG 110u
 static q_patch_t progs[NPROG];                  /* the programs (flash: app.c) */
 static uint8_t iw_state, iw_a;                  /* TOOLS > INTERVAL WRITE: 0 off, 1 waiting for the first key, 2 for the second */
 static uint8_t cmp_on;                          /* TOOLS > COMPARE: the stored program is playing, the edit is kept in cmp_edit */

@@ -8,7 +8,7 @@ typedef struct {
 #define END 0xFF
 #define NEG(v) ((uint8_t)(int8_t)(v))
 
-static const q_factory_t FACTORY[105] = {
+static const q_factory_t FACTORY[110] = {
     /* ---- 1-16 (1.5): the sixteen factory voices of the ARP Quadra, from its revised patch sheets. The sheets show
      * the switches (which footages, which controls variable, the phaser routing, the lead's waveforms); the sliders
      * were left midway, so a variable control is 64 and a preset one a fixed value. */
@@ -359,6 +359,21 @@ static const q_factory_t FACTORY[105] = {
     {"INIT", {QP_B_EB16, 0, QP_B_EB8, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_M_L, 0, QP_P_8, 1, QP_P_4, 0, QP_P_WAVE, 0,
               QP_P_CUT, 110, QP_P_RES, 0, QP_P_ENV, 0, QP_P_A, 0, QP_P_D, 100, QP_P_S, 127, QP_P_R, 40, QP_M_P, 110,
               QP_PH_S, 0, QP_REV, 0, QP_DLY, 0, END}},
+    /* blank templates (1.6): one section on, flat and dry, to build a sound from; INIT ALL has all four */
+    {"INIT BASS", {QP_B_EB16, 1, QP_B_EB8, 0, QP_M_B, 110, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_P_4, 0, QP_M_P, 0,
+                   QP_M_L, 0, QP_PH_S, 0, QP_REV, 0, QP_DLY, 0, END}},
+    {"INIT STRINGS", {QP_B_EB16, 0, QP_B_EB8, 0, QP_S_8, 1, QP_S_4, 0, QP_M_S, 110, QP_P_8, 0, QP_P_4, 0, QP_M_P, 0,
+                      QP_M_L, 0, QP_PH_S, 0, QP_REV, 0, QP_DLY, 0, END}},
+    {"INIT POLY", {QP_B_EB16, 0, QP_B_EB8, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 1, QP_P_4, 0, QP_P_CUT, 110,
+                   QP_P_RES, 0, QP_P_ENV, 0, QP_P_A, 0, QP_P_D, 100, QP_P_S, 127, QP_P_R, 40, QP_M_P, 110, QP_M_L, 0,
+                   QP_PH_S, 0, QP_REV, 0, QP_DLY, 0, END}},
+    {"INIT LEAD", {QP_B_EB16, 0, QP_B_EB8, 0, QP_S_8, 0, QP_S_4, 0, QP_M_S, 0, QP_P_8, 0, QP_P_4, 0, QP_M_P, 0,
+                   QP_L_WAVE, 0, QP_L_VCO2, 0, QP_L_CUT, 100, QP_L_RES, 0, QP_L_ENV, 0, QP_L_A, 0, QP_L_VIB, 0,
+                   QP_M_L, 110, QP_PH_S, 0, QP_REV, 0, QP_DLY, 0, END}},
+    {"INIT ALL", {QP_B_EB16, 1, QP_B_EB8, 0, QP_M_B, 90, QP_S_8, 1, QP_S_4, 0, QP_M_S, 90, QP_P_8, 1, QP_P_4, 0,
+                  QP_P_CUT, 110, QP_P_RES, 0, QP_P_ENV, 0, QP_P_A, 0, QP_P_D, 100, QP_P_S, 127, QP_P_R, 40, QP_M_P, 90,
+                  QP_L_WAVE, 0, QP_L_VCO2, 0, QP_L_CUT, 100, QP_L_RES, 0, QP_L_ENV, 0, QP_L_A, 0, QP_L_VIB, 0,
+                  QP_M_L, 90, QP_PH_S, 0, QP_REV, 0, QP_DLY, 0, END}},
 };
 
 static void q_factory(q_patch_t *p, uint32_t k)

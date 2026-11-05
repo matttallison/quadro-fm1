@@ -3,6 +3,7 @@
 ## 1.6
 
 - Phaser MOD ADD page: S&H and ENV can stack on top of the chosen sweep source, as on the original.
+- Blank templates, programs 106-110: INIT BASS, INIT STRINGS, INIT POLY, INIT LEAD and INIT ALL (every section on, flat and dry). 110 programs in all.
 - INTERVAL WRITE (SETUP > TOOLS, knob 4): play two keys and their distance becomes VCO 2's interval (range now +-60 semitones, 10 octaves).
 - FLAT footswitch: MIDI CC 68 lowers the lead a semitone while held.
 - HOLD footswitch: MIDI CC 69 locks the lead gate open after the key is released (pitch follows new keys).

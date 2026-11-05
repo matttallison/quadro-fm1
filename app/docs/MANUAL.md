@@ -41,7 +41,7 @@ reproduce 40–90 Hz. Set BASS OCTAVE to −1 for the original register on headp
 | **FX** | The phase shifter: inputs, then sweep |
 | **GLO** | The output mixer, then the room, REVERB, ROOM 2, DELAY, MASTER and CHORUS pages (press again for the next) |
 | **HOME** | The four sections at a glance, with knobs 1–4 as their levels. Hold it for SETUP. |
-| **PRESET** knob | Loads a program, 1–105 ([the list](https://github.com/matttallison/quadro-fm1/blob/main/app/docs/PRESETS.md)) |
+| **PRESET** knob | Loads a program, 1–110 ([the list](https://github.com/matttallison/quadro-fm1/blob/main/app/docs/PRESETS.md)) |
 | **SAVE** | Saves the current sound: PRESET picks the slot, SAVE again writes, any other button cancels |
 | **PLAY** | HOLD: the keys stay down, like the original's HOLD footswitch |
 | **REC** | SUSTAIN: the longest release |
@@ -112,11 +112,11 @@ Programs 1–16 are the voices the ARP Quadra shipped with, set up from the swit
 (PERC GLOCK, PHASED STR, FAT BRASS CHOIR, SAX BRASS, PERC FUNK, PERC 2V BELLS, FUNK POWER BLAST, SCREECH BRASS, TOUCH ORCH,
 JAZZ ORGAN, ETHERIALISM, SPACIAL ENCOUNTERS, BASS PHASER, PSEUDO POLY, HARPSI STR BRASS and ORCH TRIANGLE). The sheets leave
 the sliders midway, so a control that was variable is at its middle and one that was preset has a fixed value; adjust to taste.
-The other programs, 17–105, are listed in [the program list](PRESETS.md).
+The other programs, 17–110, are listed in [the program list](PRESETS.md).
 
 ## Starting a sound
 
-Program 105, INIT, is a plain starting point: the poly on its own, a saw, the filter open, no effects. Turn a section's
+Programs 105-110 are blank templates. 105, INIT, is a plain starting point: the poly on its own, a saw, the filter open, no effects. Turn a section's
 footage on (VOICES) or its level up (HOME) and it sounds: the footage brings the level up to 100, and a level raised from
 zero turns on its first footage. Keys below the split play the bass whenever a bass voice is on.
 
@@ -153,7 +153,7 @@ Hold HOME. Press EDIT to step through the four pages. Press HOME to leave.
 | Page | Knob 1 | Knob 2 | Knob 3 | Knob 4 |
 | --- | --- | --- | --- | --- |
 | 1 | MIDI channel (OMNI, 1–16) | Bluetooth MIDI on/off | TOUCH: 0 off, 1 (least) – 6 (most sensitive) | CLOCK OUT on/off |
-| 2 | TEMPO (internal clock) | RUN: START / STOP | — | FACT: turn twice to restore the 105 factory programs |
+| 2 | TEMPO (internal clock) | RUN: START / STOP | — | FACT: turn twice to restore the 110 factory programs |
 | 3 | BASS channel | STRINGS channel | POLY channel | LEAD channel |
 | 4 | TAP: turn the knob in time to set the tempo | COMP: right plays the stored program, left comes back to your edit | RAND: a new random sound | — |
 
@@ -177,7 +177,7 @@ and the poly from another); the others keep the channel of page 1. Strings and p
 | CC 91, 93, 94 | Reverb, chorus and delay amount |
 | CC 20–23 | The bass, strings, poly and lead levels |
 | Channel pressure | The lead's TOUCH |
-| Program change 0–104 | Programs 1–105 |
+| Program change 0–109 | Programs 1–110 |
 | Clock, start, stop, continue | The sequencer, trill and delay follow it. The header shows the tempo. |
 
 **Out:** the keys you play go out as notes with velocity, over USB and Bluetooth. With CLOCK OUT on, QUADRO sends
@@ -200,7 +200,7 @@ ends a comparison.
 - **MIDI notes play too quietly or dull.** VELOCITY > level and VEL FILTER follow MIDI velocity; set them to 0 for a flat response.
 - **The sequencer will not stop.** LATCH (the GATE page) and PLAY (HOLD) keep it running; turn LATCH off or press PLAY.
 - **Pitch is not perfectly steady.** That is ANALOG DRIFT (GLO > ANALOG): set DRIFT to 0.
-- **Back to the factory sound.** SETUP page 2, FACT: turn knob 4 twice. It restores all 105 programs and drops edited ones.
+- **Back to the factory sound.** SETUP page 2, FACT: turn knob 4 twice. It restores all 110 programs and drops edited ones.
 
 ## Saving
 
@@ -208,7 +208,7 @@ Programs and settings are kept in the FM-1's flash. SAVE stores the current soun
 changed are stored, four flash parts at a time, and a part that fills up (about 21 changed programs of its 27) keeps what fits. MIDI channel,
 Bluetooth, touch, clock, tempo and the section channels are saved with them.
 
-When you update from a 0.x test build, your settings are kept and the 105 factory programs replace the old ones.
+When you update from a 0.x test build, your settings are kept and the 110 factory programs replace the old ones.
 
 ## Parameter reference
 

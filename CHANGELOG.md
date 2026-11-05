@@ -22,14 +22,13 @@
 
 ## 1.5
 
-- The ARP Quadra's own sixteen factory voices (programs 90-105), read from the patch sheets in its owner's manual.
-- The Quadra's sixteen are now programs 1-16; the rest follow, 17-105. (If you saved programs, they stay in the slots they were in, so the
+- The ARP Quadra's own sixteen factory voices, read from the patch sheets in its owner's manual: programs 1-16, with the rest following. (If you saved programs, they stay in the slots they were in, so the
   factory program there is a different one now: check your saved ones.)
 - MIDI in: velocity sets each section's level and the bass, poly and lead cutoff (GLO > VELOCITY, VEL FILTER); the scale lock and
   transpose can apply to MIDI keys (SCALE page, MIDI); CC 71-74, 91, 93, 94 and 20-23 are mapped; SETUP page 3 gives each section its own MIDI channel.
 - Sequencer: LATCH, RANGE up to 4 octaves, and an ACCENT or TIE for each of the 16 steps.
 - Lead UNISON (FILTER page): two detuned copies of VCO 1.
-- SETUP page 4: TAP tempo, COMPARE (the stored program against your edit) and a RANDOM sound.
+- SETUP > TOOLS: TAP tempo, COMPARE (the stored program against your edit) and a RANDOM sound.
 - Flash: a store part that is full keeps the programs that fit instead of overrunning.
 - ANALOG DRIFT: each oscillator's pitch wanders a few cents over a second or two, as the original's free-running VCOs did (GLO > ANALOG, DRIFT; 0 is off).
 

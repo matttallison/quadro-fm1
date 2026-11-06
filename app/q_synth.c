@@ -240,7 +240,9 @@ static struct {
         uint8_t gate, stage, note1, note2;
         int32_t t1, t2, p1, p2, env, g, vib;    /* targets / pitches (1/16 st), Q24 env, gain, vibrato ramp Q15 */
         uint32_t ph1, ph2, trph, arpph, subph, ph1u, ph1d;   /* (ph1u, ph1d: the UNISON copies of VCO 1) */
-        uint8_t arpi, arpup, trill_hi, odd, cut, accent, tie, vel;   /* (STEP: the step is accented; the last step is tied into this one) */
+        uint8_t arpi, arpup, trill_hi, odd, cut, accent, tie, vel;
+        int8_t jit;                             /* HUMAN: this step's random timing, +-SWING % */
+        uint32_t cb, cl, swd;                   /* synced: blocks since the clock's last step, its length, blocks the swung step still waits */   /* (STEP: the step is accented; the last step is tied into this one) */
         uint32_t stepn, steplen;                /* blocks since the step began, the last step's length in blocks (the gate) */
         int32_t z[4];
     } l;
@@ -918,16 +920,29 @@ static __attribute__((noinline)) void q_lead(void)
             q.l.arpi = (uint8_t)(mode == 3 ? len - 1 : 0);
             q.l.arpup = 1;
             q.l.arpph = 0;
-            q.l.stepn = 0, q.l.steplen = 0, q.l.odd = 0;
+            q.l.stepn = 0, q.l.steplen = 0, q.l.odd = 0, q.l.jit = 0, q.l.swd = 0;
             retrig = 1;
         }
         int sync = q.clk_run && P(QP_SYNC), adv;
-        if (sync) {
-            adv = q_clock_step(&q.clk_used, Q_SYNC_DIV[qclamp(P(QP_SYNC), 0, 6)]);
+        int32_t sw = qclamp(P(QP_SQ_SW), 0, 50), feel = P(QP_SQ_FEEL), grp = 1 << qclamp(P(QP_SQ_GRID), 0, 2);
+        if (sync) {                             /* the clock's step, held back by SWING % of a step when the feel says so */
+            adv = 0;
+            q.l.cb++;
+            if (q_clock_step(&q.clk_used, Q_SYNC_DIV[qclamp(P(QP_SYNC), 0, 6)])) {
+                uint32_t m, d = 0;
+                int late = (((uint32_t)q.l.odd + 1u) / (uint32_t)grp) & 1u;      /* (the step about to start is the second half of its group) */
+                q.l.cl = q.l.cb, q.l.cb = 0;
+                m = q.l.cl * (uint32_t)sw / 100u;
+                if (feel == 2) d = m ? (q_rand(&q.seed) >> 8) % (m + 1u) : 0;
+                else if (late == (feel == 0)) d = m;
+                if (d) q.l.swd = d; else adv = 1;
+            }
+            if (q.l.swd && --q.l.swd == 0) adv = 1;
         } else {
-            uint32_t sw = (uint32_t)P(QP_SQ_SW), inc = step;       /* swing: a pair's first step long, its second short */
-            if (sw)
-                inc = ((step >> 7) * 100u / (q.l.odd ? 100u - sw : 100u + sw)) << 7;
+            uint32_t inc = step;                /* a group's first steps long, its second short (PUSH: the other way; HUMAN: each step off by chance) */
+            int32_t sgn = feel == 2 ? q.l.jit : (((q.l.odd / grp) & 1) == (feel == 1) ? sw : -sw);
+            if (sgn)
+                inc = ((step >> 7) * 100u / (uint32_t)(100 + sgn)) << 7;
             q.l.arpph += inc;
             adv = q.l.arpph < inc;
         }
@@ -935,7 +950,8 @@ static __attribute__((noinline)) void q_lead(void)
         if (adv) {                              /* the next step */
             q.l.steplen = q.l.stepn;
             q.l.stepn = 0;
-            q.l.odd ^= 1u;
+            q.l.odd++;
+            q.l.jit = (int8_t)(feel == 2 && sw ? (int32_t)((q_rand(&q.seed) >> 8) % (uint32_t)(2 * sw + 1)) - sw : 0);
             switch (mode) {
             case 5: q.l.tie = P(QP_SQT0 + q.l.arpi % 16) == 2; q.l.arpi = (uint8_t)((q.l.arpi + 1) % len); break;   /* STEP */
             case 6: case 7: case 8: case 9: case 10: case 11:                                  /* PEDAL THUMB CONV DIVERGE PLAYED SKIP: a counter */

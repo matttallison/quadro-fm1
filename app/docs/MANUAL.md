@@ -135,9 +135,11 @@ zero turns on its first footage. Keys below the split play the bass whenever a b
   triplets).
 - **Step sequencer.** SEQ = STEP plays a pattern of up to 16 steps over the lowest key you hold on the lead: each
   step is a semitone offset (−24 to +24) or REST. Press ARP to step through its pages: SEQUENCER (mode, speed, sync),
-  GATE (LENGTH 1–16, GATE 5–100 % of each step, SWING, LATCH), then STEPS 1–4 … 13–16 and ACCENTS 1–4 … 13–16, where each step
+  GATE (LENGTH 1–16, GATE 5–100 % of each step, LATCH), TIMING (SWING, FEEL, GRID), then STEPS 1–4 … 13–16 and ACCENTS 1–4 … 13–16, where each step
   can be an ACCENT (half as loud again) or a TIE (it runs on into the next step with no new attack and no early gate). GATE works in every sequencer mode;
-  SWING runs when the sequencer is free-running (not locked to a clock). The screen draws the pattern, with the step
+  TIMING: SWING (0–50 %) sets how far steps are pushed; FEEL chooses SWING (the second step of a group late), PUSH (the second step
+  long, so the first comes early) or HUMAN (every step a little off, up to SWING %); GRID sets the group: 1+1 (every pair), 2+2 or 4+4 steps.
+  It works free-running and locked to MIDI clock (the clock's steps are held back, never early). The screen draws the pattern, with the step
   playing lit. Programs 97–100 are examples.
 
 ![CHORD+BASS: one key, a chord and its bass](img/chord.png)
@@ -516,8 +518,15 @@ Every page, by section and button, with each control's full name, range and fact
 | --- | --- | --- | --- |
 | 1 | LENGTH: Step Sequencer Length | 1 to 16 | 8 |
 | 2 | GATE: Sequencer Gate Length | 5 to 100 | 100 |
-| 3 | SWING: Sequencer Swing | 0 to 50 | 0 |
-| 4 | LATCH: Sequencer Latch | OFF / ON | OFF |
+| 3 | LATCH: Sequencer Latch | OFF / ON | OFF |
+
+**TIMING** (SEL / ARP)
+
+| Knob | Control | Range / choices | Default |
+| --- | --- | --- | --- |
+| 1 | SWING: Sequencer Swing | 0 to 50 | 0 |
+| 2 | FEEL: Sequencer Timing Feel | SWING / PUSH / HUMAN | SWING |
+| 3 | GRID: Swing Group | 1+1 / 2+2 / 4+4 | 1+1 |
 
 **STEPS 1-4** (SEL / ARP)
 

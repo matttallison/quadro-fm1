@@ -49,6 +49,7 @@ enum {
     QP_SQT0, QP_SQT1, QP_SQT2, QP_SQT3, QP_SQT4, QP_SQT5, QP_SQT6, QP_SQT7,   /* the step sequencer: each step's - / ACCENT / TIE */
     QP_SQT8, QP_SQT9, QP_SQT10, QP_SQT11, QP_SQT12, QP_SQT13, QP_SQT14, QP_SQT15,
     QP_PH_ADD,
+    QP_SQ_FEEL, QP_SQ_GRID,                     /* 1.9: the sequencer's timing: SWING / PUSH / HUMAN, and the length of its long-short groups */
     QP_N
 };
 #define QD_NAME 12
@@ -75,6 +76,8 @@ static const char *const N_FMODE[] = {"LP24", "LP12", "BP", "HP"};
 static const char *const N_LFOW[] = {"SINE", "TRI", "SAW", "SQR", "S&H"};
 static const char *const N_ARP[] = {"OFF", "UP", "UP/DN", "DOWN", "RAND", "STEP", "PEDAL", "THUMB", "CONV", "DIVRG", "PLAYED", "SKIP"};
 static const char *const N_TRIG[] = {"SINGL", "MULTI"};
+static const char *const N_FEEL[] = {"SWING", "PUSH", "HUMAN"};
+static const char *const N_GRID[] = {"1+1", "2+2", "4+4"};
 static const char *const N_PHADD[] = {"-", "S&H", "ENV", "S&H+ENV"};
 static const char *const N_PHMOD[] = {"SWEEP", "S&H", "ENV", "LFO"};
 static const char *const N_DTIME[] = {"1/4", "1/8", "1/16", "1/32", "8T", "16T", "1/8.", "1/16.", "4T", "32T"};
@@ -235,6 +238,8 @@ static const q_desc_t QD[QP_N] = {
     [QP_MIDI_LOCK] = {"MIDI", "SCALE LOCK ON MIDI IN", 0, 1, 0, F_ONOFF, 0},
     [QP_ARP_LATCH] = {"LATCH", "SEQUENCER LATCH", 0, 1, 0, F_ONOFF, 0},
     [QP_L_UNI] = {"UNISON", "LEAD UNISON DETUNE", 0, 127, 0, F_PCT, 0},
+    [QP_SQ_FEEL] = {"FEEL", "SEQUENCER TIMING FEEL", 0, 2, 0, F_ENUM, N_FEEL},
+    [QP_SQ_GRID] = {"GRID", "SWING GROUP: STEPS LONG, STEPS SHORT", 0, 2, 0, F_ENUM, N_GRID},
     [QP_PH_ADD] = {"ADD", "PHASER: ALSO MODULATE WITH", 0, 3, 0, F_ENUM, N_PHADD},
     [QP_SQT0] = {"ACC 1", "SEQUENCER STEP 1 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
     [QP_SQT1] = {"ACC 2", "SEQUENCER STEP 2 ACCENT / TIE", 0, 2, 0, F_ENUM, N_TIE},
@@ -305,7 +310,8 @@ static const q_page_t PAGES[] = {
     {SEC_LEAD, PK_SCL, VZ_KEYS, "PLAY", {QP_L_2V, QP_L_POR1, QP_L_POR2, QP_L_TRIG}},
     {SEC_LEAD, PK_SCL, VZ_KEYS, "SCALE", {QP_KEY, QP_SCALE, QP_TRANSP, QP_MIDI_LOCK}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "SEQUENCER", {QP_ARP, QP_TRSPD, QP_SYNC, QP_ARP_OCT}},
-    {SEC_LEAD, PK_SCL, VZ_ARP, "GATE", {QP_SQ_LEN, QP_SQ_GATE, QP_SQ_SW, QP_ARP_LATCH}},
+    {SEC_LEAD, PK_SCL, VZ_ARP, "GATE", {QP_SQ_LEN, QP_SQ_GATE, QP_ARP_LATCH, _}},
+    {SEC_LEAD, PK_SCL, VZ_ARP, "TIMING", {QP_SQ_SW, QP_SQ_FEEL, QP_SQ_GRID, _}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "STEPS 1-4", {QP_SQ0, QP_SQ1, QP_SQ2, QP_SQ3}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "STEPS 5-8", {QP_SQ4, QP_SQ5, QP_SQ6, QP_SQ7}},
     {SEC_LEAD, PK_SCL, VZ_ARP, "STEPS 9-12", {QP_SQ8, QP_SQ9, QP_SQ10, QP_SQ11}},

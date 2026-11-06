@@ -154,6 +154,61 @@ static int arp_seq(int mode, const int *keys, int nk, int *out)
     return n;
 }
 
+/* the sequencer's timing: the gaps between the steps' starts (in blocks), free-running and on a MIDI clock */
+static int gaps(const int *kv, int sync, int *g, int ng)
+{
+    int k, n = 0, last = -1, prev = 0, blocks = 6000;
+    only = "L";
+    patch(kv);
+    qp.v[QP_ARP] = 1;
+    if (sync) qp.v[QP_SYNC] = 4;
+    q_post(QE_ON, 60); q_post(QE_ON, 64);
+    for (k = 0; k < blocks && n < ng; k++) {
+        int32_t o[2 * Q_BLK];
+        memset(o, 0, sizeof o);
+        if (sync && k % 8 == 0) q_clock(k ? 0xF8u : 0xFAu);   /* a tick every 8 blocks: a 1/16 step = 6 ticks = 48 blocks */
+        if (sync && k == 4) q_clock(0xFAu);
+        q_block(o);
+        if (q.l.odd != prev || k == 0) {
+            if (last >= 0) g[n++] = k - last;
+            last = k, prev = q.l.odd;
+        }
+    }
+    return n;
+}
+static void timing_tests(void)
+{
+    int g[16], n, i, mx, mn;
+    int sw[] = {QP_SQ_SW, 30, QP_TRSPD, 100, -1};
+    int pu[] = {QP_SQ_SW, 30, QP_SQ_FEEL, 1, QP_TRSPD, 100, -1};
+    int hu[] = {QP_SQ_SW, 30, QP_SQ_FEEL, 2, QP_TRSPD, 100, -1};
+    int g2[] = {QP_SQ_SW, 30, QP_SQ_GRID, 1, QP_TRSPD, 100, -1};
+    int off[] = {QP_TRSPD, 100, -1};
+    n = gaps(off, 0, g, 8);
+    mx = mn = g[2]; for (i = 2; i < n; i++) { if (g[i] > mx) mx = g[i]; if (g[i] < mn) mn = g[i]; }
+    printf("%s straight steps even (%d..%d blocks)\n", mx - mn <= 1 ? "  ok  " : "  FAIL", mn, mx); bad |= mx - mn > 1;
+    n = gaps(sw, 0, g, 8);
+    i = g[0] > g[1] * 17 / 10 && g[0] < g[1] * 25 / 10 && g[2] == g[0];
+    printf("%s SWING: long then short (%d,%d,%d,%d)\n", i ? "  ok  " : "  FAIL", g[0], g[1], g[2], g[3]); bad |= !i;
+    n = gaps(pu, 0, g, 8);
+    i = g[0] < g[1] && g[1] > g[0] * 17 / 10;
+    printf("%s PUSH: short then long (%d,%d,%d,%d)\n", i ? "  ok  " : "  FAIL", g[0], g[1], g[2], g[3]); bad |= !i;
+    n = gaps(g2, 0, g, 12);
+    i = abs(g[0] - g[1]) <= 2 && abs(g[2] - g[3]) <= 2 && g[0] > g[2] * 17 / 10;
+    printf("%s GRID 2+2: two long, two short (%d,%d,%d,%d)\n", i ? "  ok  " : "  FAIL", g[0], g[1], g[2], g[3]); bad |= !i;
+    n = gaps(hu, 0, g, 12);
+    mx = mn = g[0]; for (i = 0; i < n; i++) { if (g[i] > mx) mx = g[i]; if (g[i] < mn) mn = g[i]; }
+    i = mx - mn >= 5 && mx < mn * 3;
+    printf("%s HUMAN: steps differ (%d..%d blocks)\n", i ? "  ok  " : "  FAIL", mn, mx); bad |= !i;
+    n = gaps(sw, 1, g, 8);
+    printf("  info  synced SWING gaps %d %d %d %d %d %d\n", g[0], g[1], g[2], g[3], g[4], g[5]);
+    i = n >= 6 && g[2] + g[3] >= 90 && g[2] + g[3] <= 100 && g[2] > g[3] * 15 / 10;
+    printf("%s synced SWING: pairs keep the clock, the offbeat is late\n", i ? "  ok  " : "  FAIL"); bad |= !i;
+    n = gaps(pu, 1, g, 8);
+    i = n >= 6 && g[2] + g[3] >= 90 && g[2] + g[3] <= 100 && g[3] > g[2] * 15 / 10;
+    printf("%s synced PUSH: the downbeat is late, pairs keep the clock\n", i ? "  ok  " : "  FAIL"); bad |= !i;
+}
+
 int main(void)
 {
     static const char *WN[5] = {"SAW", "SQR", "PULSE", "TRI", "SINE"};
@@ -560,6 +615,7 @@ int main(void)
         }
         check("VELOCITY reaches the sequencer", e[0] < e[1] * 0.5, "vel 20 %.0f  vel 120 %.0f", e[0], e[1], 0);
     }
+    timing_tests();
     printf("%s\n", bad ? "QUADRO features: FAIL" : "QUADRO features: all ok");
     return bad != 0;
 }

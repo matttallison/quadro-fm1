@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.9
+
+- Sequencer TIMING page (ARP, after GATE): SWING moved here with two new options. FEEL: SWING (the second step late), PUSH (the first step early) or HUMAN (each step off by chance, up to SWING %). GRID: swing every pair (1+1), every two steps (2+2) or four (4+4).
+- SWING now also works locked to MIDI clock (the clock's steps are held back, never early). It only ran free before.
+- Existing programs sound the same. Knob 3 of the GATE page is LATCH now.
+
 ## 1.8
 
 - Newer FM-1 units (flash chip UC25HQ80, ID B36014) are accepted: programs and settings save and the updater installs on them. (fm1-base updated.)

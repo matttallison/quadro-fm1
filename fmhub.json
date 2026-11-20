@@ -1,0 +1,8 @@
+{
+  "what": "QUADRO turns the FM-1 into a four-section performance synth after the ARP Quadra: bass, string ensemble, poly and a two-voice lead play at once across a split keyboard, with a 14-stage phaser, reverb and delay, one-finger chords, a clock-synced sequencer and 105 programs.",
+  "author": "Matt Allison",
+  "kinds": ["synth", "chords"],
+  "play": "https://matttallison.github.io/quadro-fm1/",
+  "image": "app/docs/img/home.png",
+  "sounds": "own: demo recordings of QUADRO playing on the FM-1"
+}
